@@ -230,8 +230,20 @@ async def leaderboard(ctx, limit: int = 10):
         
         description = ""
         for i, (user_id, balance) in enumerate(top_users, 1):
-            user = bot.get_user(user_id)
-            username = user.display_name if user else f"Unknown User ({user_id})"
+            # Try to get user from the current guild first, then global cache
+            user = ctx.guild.get_member(user_id) if ctx.guild else None
+            if not user:
+                user = bot.get_user(user_id)
+            
+            if user:
+                username = user.display_name
+            else:
+                # Try to fetch user from Discord API as last resort
+                try:
+                    user = await bot.fetch_user(user_id)
+                    username = user.display_name
+                except:
+                    username = f"User {user_id}"
             
             # Add medals for top 3
             if i == 1:
