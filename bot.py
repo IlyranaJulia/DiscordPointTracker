@@ -40,7 +40,7 @@ class PointsBot(commands.Bot):
         logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
         
         # Set bot status
-        activity = discord.Game(name=f"{Config.COMMAND_PREFIX}help for commands")
+        activity = discord.Game(name=f"{Config.COMMAND_PREFIX}pipihelp for commands")
         await self.change_presence(activity=activity)
         
     async def on_command_error(self, ctx, error):
@@ -52,7 +52,7 @@ class PointsBot(commands.Bot):
             await ctx.send("❌ You don't have permission to use this command.")
             
         elif isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f"❌ Missing required argument. Use `{Config.COMMAND_PREFIX}help` for command usage.")
+            await ctx.send(f"❌ Missing required argument. Use `{Config.COMMAND_PREFIX}pipihelp` for command usage.")
             
         elif isinstance(error, commands.BadArgument):
             await ctx.send("❌ Invalid argument provided. Please check your input and try again.")
@@ -252,7 +252,7 @@ async def leaderboard(ctx, limit: int = 10):
         logger.error(f"Error in leaderboard command: {e}")
         await ctx.send("❌ An error occurred while fetching the leaderboard.")
 
-@bot.command(name='help', aliases=['h'])
+@bot.command(name='pipihelp', aliases=['ph'])
 async def help_command(ctx):
     """Show help information for all commands"""
     embed = discord.Embed(
