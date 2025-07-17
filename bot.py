@@ -131,6 +131,57 @@ async def add_points(ctx, member: discord.Member, amount: int):
         logger.error(f"Error in add_points command: {e}")
         await ctx.send("❌ An error occurred while adding points.")
 
+@bot.command(name='givepoints', aliases=['give'])
+@commands.has_permissions(administrator=True)
+async def give_points_by_name(ctx, username: str, amount: int):
+    """Add points to a user by username (no mention needed) (Admin only)"""
+    try:
+        # Validate amount
+        if amount <= 0:
+            await ctx.send("❌ Point amount must be a positive number.")
+            return
+            
+        if amount > 1000000:  # Reasonable upper limit
+            await ctx.send("❌ Point amount is too large. Maximum allowed is 1,000,000 points per transaction.")
+            return
+        
+        # Find member by username (case insensitive)
+        member = None
+        username_lower = username.lower()
+        
+        # Search through guild members
+        for guild_member in ctx.guild.members:
+            if (guild_member.display_name.lower() == username_lower or 
+                guild_member.name.lower() == username_lower or 
+                username_lower in guild_member.display_name.lower()):
+                member = guild_member
+                break
+        
+        if not member:
+            await ctx.send(f"❌ Could not find user with username '{username}'. Make sure they're in this server and the spelling is correct.")
+            return
+            
+        # Add points
+        await bot.db.update_points(member.id, amount)
+        new_balance = await bot.db.get_points(member.id)
+        
+        # Create success embed
+        embed = discord.Embed(
+            title="✅ Points Added Successfully",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Member", value=f"{member.display_name}", inline=True)
+        embed.add_field(name="Points Added", value=f"{amount:,}", inline=True)
+        embed.add_field(name="New Balance", value=f"{new_balance:,}", inline=True)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        
+        await ctx.send(embed=embed)
+        logger.info(f"Admin {ctx.author} gave {amount} points to {member.display_name} (ID: {member.id})")
+        
+    except Exception as e:
+        logger.error(f"Error in give_points_by_name command: {e}")
+        await ctx.send("❌ An error occurred while adding points.")
+
 @bot.command(name='removepoints', aliases=['remove', 'subtract'])
 @commands.has_permissions(administrator=True)
 async def remove_points(ctx, member: discord.Member, amount: int):
@@ -285,6 +336,7 @@ async def help_command(ctx):
     embed.add_field(
         name="👑 Admin Commands",
         value=f"`{Config.COMMAND_PREFIX}addpoints @user <amount>` - Add points to a user\n"
+              f"`{Config.COMMAND_PREFIX}givepoints <username> <amount>` - Add points by username\n"
               f"`{Config.COMMAND_PREFIX}removepoints @user <amount>` - Remove points from a user\n"
               f"`{Config.COMMAND_PREFIX}setpoints @user <amount>` - Set user's points to specific amount",
         inline=False
