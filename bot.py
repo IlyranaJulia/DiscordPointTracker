@@ -402,6 +402,40 @@ async def bot_status(ctx):
         logger.error(f"Error in bot_status command: {e}")
         await ctx.send("❌ An error occurred while fetching bot status.")
 
+@bot.command(name='listusers')
+@commands.has_permissions(administrator=True)
+async def list_users(ctx):
+    """List all server members for debugging (Admin only)"""
+    try:
+        members_list = []
+        for member in ctx.guild.members:
+            if not member.bot:  # Skip bots
+                members_list.append(f"**{member.display_name}** (username: {member.name})")
+        
+        if not members_list:
+            await ctx.send("No members found in this server.")
+            return
+            
+        # Split into chunks if too many users
+        chunk_size = 10
+        for i in range(0, len(members_list), chunk_size):
+            chunk = members_list[i:i + chunk_size]
+            
+            embed = discord.Embed(
+                title=f"👥 Server Members ({i+1}-{min(i+chunk_size, len(members_list))} of {len(members_list)})",
+                description="\n".join(chunk),
+                color=discord.Color.blue()
+            )
+            
+            await ctx.send(embed=embed)
+            
+            if len(members_list) > chunk_size and i + chunk_size < len(members_list):
+                await asyncio.sleep(1)  # Small delay between messages
+        
+    except Exception as e:
+        logger.error(f"Error in list_users command: {e}")
+        await ctx.send("❌ An error occurred while listing users.")
+
 async def main():
     """Main function to run the bot"""
     try:
