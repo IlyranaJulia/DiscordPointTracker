@@ -149,16 +149,38 @@ async def give_points_by_name(ctx, username: str, amount: int):
         member = None
         username_lower = username.lower()
         
-        # Search through guild members
+        # Search through guild members with multiple strategies
         for guild_member in ctx.guild.members:
+            # Exact match on display name or username
             if (guild_member.display_name.lower() == username_lower or 
-                guild_member.name.lower() == username_lower or 
-                username_lower in guild_member.display_name.lower()):
+                guild_member.name.lower() == username_lower):
+                member = guild_member
+                break
+            # Partial match in display name or username
+            elif (username_lower in guild_member.display_name.lower() or 
+                  username_lower in guild_member.name.lower()):
                 member = guild_member
                 break
         
         if not member:
-            await ctx.send(f"❌ Could not find user with username '{username}'. Make sure they're in this server and the spelling is correct.")
+            # Try to find suggestions for similar usernames
+            suggestions = []
+            for guild_member in ctx.guild.members:
+                if (username_lower in guild_member.display_name.lower() or 
+                    username_lower in guild_member.name.lower() or
+                    guild_member.display_name.lower().startswith(username_lower[:3]) or
+                    guild_member.name.lower().startswith(username_lower[:3])):
+                    suggestions.append(guild_member.display_name)
+                    if len(suggestions) >= 3:
+                        break
+            
+            error_msg = f"❌ Could not find user '{username}'."
+            if suggestions:
+                error_msg += f"\n💡 Did you mean: {', '.join(suggestions[:3])}?"
+            else:
+                error_msg += "\nMake sure they're in this server and the spelling is correct."
+            
+            await ctx.send(error_msg)
             return
             
         # Add points
