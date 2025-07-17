@@ -207,7 +207,7 @@ async def set_points(ctx, member: discord.Member, amount: int):
         logger.error(f"Error in set_points command: {e}")
         await ctx.send("❌ An error occurred while setting points.")
 
-@bot.command(name='leaderboard', aliases=['top', 'lb'])
+@bot.command(name='pointsboard', aliases=['top', 'lb'])
 async def leaderboard(ctx, limit: int = 10):
     """Show the points leaderboard"""
     try:
@@ -265,7 +265,7 @@ async def help_command(ctx):
     embed.add_field(
         name="👤 User Commands",
         value=f"`{Config.COMMAND_PREFIX}points [@user]` - Check your points or another user's points\n"
-              f"`{Config.COMMAND_PREFIX}leaderboard [limit]` - Show points leaderboard",
+              f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard",
         inline=False
     )
     
