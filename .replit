@@ -21,4 +21,9 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pip install discord.py aiosqlite python-dotenv && python bot.py"
+args = "pip install discord.py aiosqlite python-dotenv flask && python bot.py"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80

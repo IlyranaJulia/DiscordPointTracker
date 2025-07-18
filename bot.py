@@ -3,6 +3,8 @@ from discord.ext import commands
 import logging
 import asyncio
 import sys
+import threading
+from flask import Flask
 from config import Config
 from database import PointsDatabase
 
@@ -16,6 +18,37 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Initialize Flask app
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return """
+    <h1>🤖 Discord Points Bot is Running!</h1>
+    <p>Bot Status: <span style="color: green;">Online ✅</span></p>
+    <p>Bot Name: Pipi-bot#5480</p>
+    <p>Features:</p>
+    <ul>
+        <li>Points Management System</li>
+        <li>Leaderboard System</li>
+        <li>Admin Commands</li>
+        <li>SQLite Database</li>
+    </ul>
+    <p>Commands: !pipihelp for full list</p>
+    """
+
+@app.route("/status")
+def status():
+    return {
+        "status": "online",
+        "bot_name": "Pipi-bot",
+        "features": ["points_management", "leaderboard", "admin_commands"],
+        "database": "sqlite"
+    }
+
+def run_flask():
+    app.run(host="0.0.0.0", port=5000, debug=False)
 
 class PointsBot(commands.Bot):
     def __init__(self):
@@ -443,6 +476,11 @@ async def main():
         if not Config.BOT_TOKEN or Config.BOT_TOKEN == "your_bot_token_here":
             logger.error("Bot token not configured! Please set BOT_TOKEN in your environment variables.")
             return
+            
+        # Start Flask web server in a separate thread
+        flask_thread = threading.Thread(target=run_flask, daemon=True)
+        flask_thread.start()
+        logger.info("Flask web server started on port 5000")
             
         # Start the bot
         async with bot:
