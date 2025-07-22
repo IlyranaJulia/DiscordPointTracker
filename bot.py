@@ -7,6 +7,7 @@ import aiosqlite
 import sys
 import threading
 import re
+import os
 from flask import Flask, request, jsonify
 from config import Config
 from database import PointsDatabase
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+app.secret_key = os.getenv("SESSION_SECRET", "default_session_secret_change_in_production")
 
 @app.route("/")
 def home():
@@ -1199,8 +1201,31 @@ def status():
         "database": "sqlite_enhanced"
     }
 
-def run_flask():
-    app.run(host="0.0.0.0", port=5000, debug=False)
+@app.route("/health")
+def health_check():
+    """Health check endpoint for deployment monitoring"""
+    try:
+        # Basic health check - ensure bot is initialized and database is accessible
+        if bot and hasattr(bot, 'user') and bot.user:
+            return jsonify({
+                "status": "healthy",
+                "bot_status": "online",
+                "timestamp": datetime.now().isoformat()
+            }), 200
+        else:
+            return jsonify({
+                "status": "initializing",
+                "bot_status": "starting",
+                "timestamp": datetime.now().isoformat()
+            }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
+
+
 
 class PointsBot(commands.Bot):
     def __init__(self):
@@ -1625,25 +1650,51 @@ def run_flask():
 
 # Main execution
 async def main():
+    """Main application entry point with enhanced error handling"""
     try:
+        # Validate configuration
         if not Config.BOT_TOKEN or Config.BOT_TOKEN == 'your_bot_token_here':
-            logger.error('Bot token not configured!')
+            logger.error('Bot token not configured! Please set BOT_TOKEN environment variable.')
             return
+        
+        # Start Flask web server in a daemon thread
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
         logger.info('Flask web server started on port 5000')
+        
+        # Start Discord bot
         async with bot:
+            logger.info('Starting Discord bot...')
             await bot.start(Config.BOT_TOKEN)
+            
+    except discord.LoginFailure:
+        logger.error('Failed to login to Discord. Please check your BOT_TOKEN.')
+    except discord.HTTPException as e:
+        logger.error(f'Discord HTTP error: {e}')
     except Exception as e:
-        logger.error(f'Error starting bot: {e}')
+        logger.error(f'Unexpected error starting bot: {e}')
+        raise
     finally:
         if bot.db:
-            await bot.db.close()
+            try:
+                await bot.db.close()
+            except Exception as e:
+                logger.error(f'Error closing database: {e}')
 
 if __name__ == '__main__':
     try:
+        # Load environment variables from .env file if it exists
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+            logger.info('Environment variables loaded from .env file')
+        except ImportError:
+            logger.info('python-dotenv not available, using system environment variables only')
+        
         asyncio.run(main())
+        
     except KeyboardInterrupt:
-        logger.info('Bot shutdown requested')
+        logger.info('Bot shutdown requested by user')
     except Exception as e:
-        logger.error(f'Unexpected error: {e}')
+        logger.error(f'Critical error in main execution: {e}')
+        sys.exit(1)

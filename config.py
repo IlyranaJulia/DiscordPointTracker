@@ -8,6 +8,9 @@ class Config:
     BOT_TOKEN: str = os.getenv("BOT_TOKEN", "your_bot_token_here")
     COMMAND_PREFIX: str = os.getenv("COMMAND_PREFIX", "!")
     
+    # Web application configuration
+    SESSION_SECRET: str = os.getenv("SESSION_SECRET", "default_session_secret_change_in_production")
+    
     # Database configuration - Use persistent storage on Fly.io
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "/data/points.db" if os.path.exists("/data") else "points.db")
     
@@ -46,5 +49,8 @@ class Config:
         
         if not cls.BOT_TOKEN or cls.BOT_TOKEN == "your_bot_token_here":
             missing.append("BOT_TOKEN")
+        
+        if not cls.SESSION_SECRET or cls.SESSION_SECRET == "default_session_secret_change_in_production":
+            missing.append("SESSION_SECRET (recommended for production)")
             
         return missing
