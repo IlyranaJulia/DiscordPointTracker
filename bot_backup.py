@@ -1619,31 +1619,571 @@ EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 
 
-# Flask web server runner
-def run_flask():
-    app.run(host='0.0.0.0', port=5000, debug=False)
 
-# Main execution
-async def main():
+
+
+
+
+
+
+
+
+
+
+
+# Flask API endpoints for web dashboard
+@app.route('/api/quick_stats')
+def api_quick_stats():
+    """Submit your order email address to claim points"""
     try:
-        if not Config.BOT_TOKEN or Config.BOT_TOKEN == 'your_bot_token_here':
-            logger.error('Bot token not configured!')
+        if not email_address:
+            embed = discord.Embed(
+                title="📧 Submit Your Order Email",
+                description="To claim your Discord points, please submit the email address you used for your order.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="Usage", 
+                value="`!submitemail your-email@example.com`", 
+                inline=False
+            )
+            embed.add_field(
+                name="Privacy Protection", 
+                value="Your message will be deleted immediately after processing for privacy.", 
+                inline=False
+            )
+            await ctx.send(embed=embed)
             return
+        
+        # Basic email validation
+        if '@' not in email_address or '.' not in email_address:
+            await ctx.send("❌ Please provide a valid email address.")
+            # Delete user's message for privacy
+            try:
+                await ctx.message.delete()
+            except:
+                pass
+            return
+        
+        email_address = email_address.strip().lower()
+        
+        # Store the email submission in database
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Create table if not exists
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS email_submissions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discord_user_id INTEGER NOT NULL,
+                    discord_username TEXT NOT NULL,
+                    email_address TEXT NOT NULL,
+                    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'pending',
+                    processed_at TIMESTAMP,
+                    admin_notes TEXT
+                )
+            ''')
+            
+            # Check if user already submitted an email
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (ctx.author.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if existing:
+                existing_email, submitted_at = existing
+                # Delete user's message for privacy
+                try:
+                    await ctx.message.delete()
+                except:
+                    pass
+                
+                embed = discord.Embed(
+                    title="📧 Email Already Submitted",
+                    description=f"You've already submitted: **{existing_email}**",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Submitted", value=submitted_at, inline=True)
+                embed.add_field(name="Status", value="Pending review", inline=True)
+                embed.add_field(
+                    name="Need to change?", 
+                    value="Contact a server admin to update your email address.", 
+                    inline=False
+                )
+                
+                # Send response and delete it after a delay
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(10)  # Show for 10 seconds
+                try:
+                    await msg.delete()
+                except:
+                    pass
+                return
+            
+            # Insert new email submission
+            await db.execute('''
+                INSERT INTO email_submissions 
+                (discord_user_id, discord_username, email_address, status)
+                VALUES (?, ?, ?, 'pending')
+            ''', (ctx.author.id, str(ctx.author), email_address))
+            
+            await db.commit()
+        
+        # Delete user's message immediately for privacy
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        # Send confirmation to user
+        embed = discord.Embed(
+            title="✅ Email Submitted Successfully",
+            description=f"Your order email **{email_address}** has been submitted for point verification.",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="What's Next?", 
+            value="Server admins will verify your order and you'll receive your points automatically.", 
+            inline=False
+        )
+        embed.add_field(
+            name="Privacy", 
+            value="Your email is stored securely and only visible to server admins.", 
+            inline=False
+        )
+        
+        # Send confirmation and delete after delay
+        confirmation_msg = await ctx.send(embed=embed)
+        await asyncio.sleep(15)  # Show confirmation for 15 seconds
+        try:
+            await confirmation_msg.delete()
+        except:
+            pass
+        
+        # Try to send a DM confirmation that persists
+        try:
+            dm_embed = discord.Embed(
+                title="📧 Email Submission Confirmed",
+                description=f"Your order email **{email_address}** has been securely submitted.",
+                color=discord.Color.green()
+            )
+            dm_embed.add_field(
+                name="Status", 
+                value="Pending admin verification", 
+                inline=True
+            )
+            dm_embed.add_field(
+                name="What's Next", 
+                value="You'll receive points automatically once verified", 
+                inline=False
+            )
+            await ctx.author.send(embed=dm_embed)
+        except:
+            # If DM fails, that's okay - the public confirmation was already shown
+            pass
+        
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) submitted email: {email_address}")
+        
+    except Exception as e:
+        logger.error(f"Error in submit_order_email command: {e}")
+        # Delete user's message for privacy even on error
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        error_msg = await ctx.send("❌ An error occurred while submitting your email. Please try again later.")
+        await asyncio.sleep(10)
+        try:
+            await error_msg.delete()
+        except:
+            pass
+        
+        if not email_address:
+            embed = discord.Embed(
+                title="📧 Submit Your Order Email",
+                description="To claim your Discord points, please submit the email address you used for your order.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="Usage", 
+                value="`!submitemail your-email@example.com`", 
+                inline=False
+            )
+            embed.add_field(
+                name="Privacy", 
+                value="Your email is kept private and only visible to server admins.", 
+                inline=False
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # Basic email validation
+        if '@' not in email_address or '.' not in email_address:
+            await ctx.send("❌ Please provide a valid email address.")
+            return
+        
+        email_address = email_address.strip().lower()
+        
+        # Store the email submission in database
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Create table if not exists
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS email_submissions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discord_user_id INTEGER NOT NULL,
+                    discord_username TEXT NOT NULL,
+                    email_address TEXT NOT NULL,
+                    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'pending',
+                    processed_at TIMESTAMP,
+                    admin_notes TEXT
+                )
+            ''')
+            
+            # Check if user already submitted an email
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (ctx.author.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if existing:
+                existing_email, submitted_at = existing
+                embed = discord.Embed(
+                    title="📧 Email Already Submitted",
+                    description=f"You've already submitted: **{existing_email}**",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Submitted", value=submitted_at, inline=True)
+                embed.add_field(name="Status", value="Pending review", inline=True)
+                embed.add_field(
+                    name="Need to change?", 
+                    value="Use `!updateemail new-email@example.com` to update it.", 
+                    inline=False
+                )
+                
+                # Send response and delete it after a delay
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(10)
+                try:
+                    await msg.delete()
+                except:
+                    pass
+                return
+            
+            # Insert new email submission
+            await db.execute('''
+                INSERT INTO email_submissions 
+                (discord_user_id, discord_username, email_address, status)
+                VALUES (?, ?, ?, 'pending')
+            ''', (ctx.author.id, str(ctx.author), email_address))
+            
+            await db.commit()
+        
+        # Send confirmation to user
+        embed = discord.Embed(
+            title="✅ Email Submitted Successfully",
+            description=f"Your order email **{email_address}** has been submitted for point verification.",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="What's Next?", 
+            value="Server admins will verify your order and you'll receive your points automatically.", 
+            inline=False
+        )
+        embed.add_field(
+            name="Privacy", 
+            value="Your email is stored securely and only visible to server admins.", 
+            inline=False
+        )
+        await ctx.send(embed=embed)
+        
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) submitted email: {email_address}")
+        
+    except Exception as e:
+        logger.error(f"Error in submit_order_email command: {e}")
+        await ctx.send("❌ An error occurred while submitting your email. Please try again later.")
+
+
+
+@bot.command(name='updateemail', aliases=['changeemail', 'newemail'])
+async def update_email(ctx, *, new_email_address: str = None):
+    """Update your previously submitted email address"""
+    try:
+        if not new_email_address:
+            embed = discord.Embed(
+                title="📧 Update Your Email",
+                description="Change your previously submitted order email address.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="Usage", 
+                value="`!updateemail your-new-email@example.com`", 
+                inline=False
+            )
+            embed.add_field(
+                name="Privacy Protection", 
+                value="Your message will be deleted immediately after processing.", 
+                inline=False
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # Basic email validation
+        if '@' not in new_email_address or '.' not in new_email_address:
+            await ctx.send("❌ Please provide a valid email address.")
+            try:
+                await ctx.message.delete()
+            except:
+                pass
+            return
+        
+        new_email_address = new_email_address.strip().lower()
+        
+        # Update email submission in database
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Check if user has an existing submission
+            cursor = await db.execute('''
+                SELECT id, email_address FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (ctx.author.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if not existing:
+                # Delete user's message for privacy
+                try:
+                    await ctx.message.delete()
+                except:
+                    pass
+                
+                embed = discord.Embed(
+                    title="❌ No Email Submission Found",
+                    description="You haven't submitted an email yet. Use `!submitemail` first.",
+                    color=discord.Color.red()
+                )
+                embed.add_field(
+                    name="How to submit:", 
+                    value="`!submitemail your-email@example.com`", 
+                    inline=False
+                )
+                
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(10)
+                try:
+                    await msg.delete()
+                except:
+                    pass
+                return
+            
+            submission_id, old_email = existing
+            
+            # Update the email address
+            await db.execute('''
+                UPDATE email_submissions 
+                SET email_address = ?, submitted_at = CURRENT_TIMESTAMP,
+                    admin_notes = COALESCE(admin_notes, '') || 'Updated from: ' || ? || ' | '
+                WHERE id = ?
+            ''', (new_email_address, old_email, submission_id))
+            
+            await db.commit()
+        
+        # Delete user's message immediately for privacy
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        # Send confirmation
+        embed = discord.Embed(
+            title="✅ Email Updated Successfully",
+            description=f"Your email has been updated to: **{new_email_address}**",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="Previous Email", 
+            value=old_email, 
+            inline=True
+        )
+        embed.add_field(
+            name="Status", 
+            value="Pending admin verification", 
+            inline=True
+        )
+        
+        # Send confirmation and delete after delay
+        confirmation_msg = await ctx.send(embed=embed)
+        await asyncio.sleep(15)
+        try:
+            await confirmation_msg.delete()
+        except:
+            pass
+        
+        # Try to send DM confirmation
+        try:
+            dm_embed = discord.Embed(
+                title="📧 Email Updated",
+                description=f"Your order email has been updated to: **{new_email_address}**",
+                color=discord.Color.green()
+            )
+            dm_embed.add_field(
+                name="Previous Email", 
+                value=old_email, 
+                inline=False
+            )
+            dm_embed.add_field(
+                name="Status", 
+                value="Pending admin verification", 
+                inline=False
+            )
+            await ctx.author.send(embed=dm_embed)
+        except:
+            pass
+        
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) updated email from {old_email} to {new_email_address}")
+        
+    except Exception as e:
+        logger.error(f"Error in update_email command: {e}")
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        error_msg = await ctx.send("❌ An error occurred while updating your email. Please try again later.")
+        await asyncio.sleep(10)
+        try:
+            await error_msg.delete()
+        except:
+            pass
+
+@bot.command(name='myemail', aliases=['checkemail', 'emailstatus'])
+async def check_my_email(ctx):
+    """Check your current email submission status"""
+    try:
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) checking email status")
+        
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # First check if table exists and has any data
+            cursor = await db.execute("SELECT COUNT(*) FROM email_submissions")
+            total_count = await cursor.fetchone()
+            logger.info(f"Total email submissions in database: {total_count[0]}")
+            
+            # Check specifically for this user
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at, status, processed_at
+                FROM email_submissions 
+                WHERE discord_user_id = ?
+                ORDER BY submitted_at DESC
+                LIMIT 1
+            ''', (ctx.author.id,))
+            
+            submission = await cursor.fetchone()
+            logger.info(f"Found submission for user {ctx.author.id}: {submission}")
+        
+        if not submission:
+            embed = discord.Embed(
+                title="📧 No Email Submission",
+                description="You haven't submitted an email yet.",
+                color=discord.Color.orange()
+            )
+            embed.add_field(
+                name="How to submit:", 
+                value="`!submitemail your-email@example.com`", 
+                inline=False
+            )
+        else:
+            email, submitted_at, status, processed_at = submission
+            embed = discord.Embed(
+                title="📧 Your Email Submission",
+                description=f"**Email:** {email}",
+                color=discord.Color.blue()
+            )
+            # Set color based on status
+            if status == 'processed':
+                embed.color = discord.Color.green()
+                status_emoji = "✅"
+            elif status == 'pending':
+                embed.color = discord.Color.blue()
+                status_emoji = "⏳"
+            else:
+                embed.color = discord.Color.red()
+                status_emoji = "❌"
+            
+            embed.add_field(name="Status", value=f"{status_emoji} {status.title()}", inline=True)
+            embed.add_field(name="Submitted", value=submitted_at, inline=True)
+            if processed_at:
+                embed.add_field(name="Processed", value=processed_at, inline=True)
+            
+            # Only show update option if still pending
+            if status == 'pending':
+                embed.add_field(
+                    name="Need to change?", 
+                    value="`!updateemail new-email@example.com`", 
+                    inline=False
+                )
+            elif status == 'processed':
+                embed.add_field(
+                    name="Status Info", 
+                    value="Your email has been processed by admin. Points may have been awarded!", 
+                    inline=False
+                )
+        
+        # Send as DM if possible, otherwise send in channel and delete
+        try:
+            await ctx.author.send(embed=embed)
+            # If DM works, send a brief public message
+            msg = await ctx.send("📧 Check your DMs for email status information.")
+            await asyncio.sleep(5)
+            try:
+                await msg.delete()
+            except:
+                pass
+        except:
+            # If DM fails, send in channel and delete after delay
+            msg = await ctx.send(embed=embed)
+            await asyncio.sleep(15)
+            try:
+                await msg.delete()
+            except:
+                pass
+        
+    except Exception as e:
+        logger.error(f"Error in check_my_email command: {e}")
+        await ctx.send("❌ An error occurred while checking your email status.")
+
+async def main():
+    """Main function to run the bot"""
+    try:
+        # Validate bot token
+        if not Config.BOT_TOKEN or Config.BOT_TOKEN == "your_bot_token_here":
+            logger.error("Bot token not configured! Please set BOT_TOKEN in your environment variables.")
+            return
+            
+        # Start Flask web server in a separate thread
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
-        logger.info('Flask web server started on port 5000')
+        logger.info("Flask web server started on port 5000")
+            
+        # Start the bot
         async with bot:
             await bot.start(Config.BOT_TOKEN)
+            
+    except discord.LoginFailure:
+        logger.error("Failed to login - Invalid bot token!")
     except Exception as e:
-        logger.error(f'Error starting bot: {e}')
+        logger.error(f"Error starting bot: {e}")
     finally:
+        # Close database connection
         if bot.db:
             await bot.db.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info('Bot shutdown requested')
+        logger.info("Bot shutdown requested by user")
     except Exception as e:
-        logger.error(f'Unexpected error: {e}')
+        logger.error(f"Unexpected error: {e}")
