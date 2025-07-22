@@ -1,0 +1,740 @@
+Discord Point Distribution Commands
+==================================================
+
+Generated: 2025-07-22 08:38:02
+Total Orders: 60
+
+OPTION 1: Manual Email + Discord Commands
+----------------------------------------
+Send these emails to customers, then use the Discord commands:
+
+Order 1:
+  Email to: 00.astr1cz.00@gmail.com
+  Subject: Discord Points Available - Order-1
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim IYBF8QP2
+  Discord Command: !claim IYBF8QP2
+  Points: 50
+
+Order 2:
+  Email to: 000mapleleaf000@gmail.com
+  Subject: Discord Points Available - Order-2
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim M31JF85Z
+  Discord Command: !claim M31JF85Z
+  Points: 50
+
+Order 3:
+  Email to: 000yuz000@gmail.com
+  Subject: Discord Points Available - Order-3
+  Message: Your order qualifies for 113 Discord points!
+           Use this code in Discord: !claim LXU0F2WP
+  Discord Command: !claim LXU0F2WP
+  Points: 113
+
+Order 4:
+  Email to: 0046foursix@gmail.com
+  Subject: Discord Points Available - Order-4
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 250B34I9
+  Discord Command: !claim 250B34I9
+  Points: 50
+
+Order 5:
+  Email to: 007vandacypriano@gmail.com
+  Subject: Discord Points Available - Order-5
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim TL7EALO5
+  Discord Command: !claim TL7EALO5
+  Points: 50
+
+Order 6:
+  Email to: 00chewi.uwu@gmail.com
+  Subject: Discord Points Available - Order-6
+  Message: Your order qualifies for 160 Discord points!
+           Use this code in Discord: !claim IBEEPUIZ
+  Discord Command: !claim IBEEPUIZ
+  Points: 160
+
+Order 7:
+  Email to: 00kayxes@gmail.com
+  Subject: Discord Points Available - Order-7
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim ROVJZYUI
+  Discord Command: !claim ROVJZYUI
+  Points: 50
+
+Order 8:
+  Email to: 00yagumin@gmail.com
+  Subject: Discord Points Available - Order-8
+  Message: Your order qualifies for 95 Discord points!
+           Use this code in Discord: !claim QC3YBTNT
+  Discord Command: !claim QC3YBTNT
+  Points: 95
+
+Order 9:
+  Email to: 01038854837a@gmail.com
+  Subject: Discord Points Available - Order-9
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 592ROZV7
+  Discord Command: !claim 592ROZV7
+  Points: 50
+
+Order 10:
+  Email to: 01053540600ab@gmail.com
+  Subject: Discord Points Available - Order-10
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 4KLK4V96
+  Discord Command: !claim 4KLK4V96
+  Points: 50
+
+Order 11:
+  Email to: 01091804366aa@gmail.com
+  Subject: Discord Points Available - Order-11
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 8DVF5NFI
+  Discord Command: !claim 8DVF5NFI
+  Points: 50
+
+Order 12:
+  Email to: 01094180125h@gmail.com
+  Subject: Discord Points Available - Order-12
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 2ZQGXMSV
+  Discord Command: !claim 2ZQGXMSV
+  Points: 50
+
+Order 13:
+  Email to: 01095260103@daum.net
+  Subject: Discord Points Available - Order-13
+  Message: Your order qualifies for 52 Discord points!
+           Use this code in Discord: !claim PDAXFSEO
+  Discord Command: !claim PDAXFSEO
+  Points: 52
+
+Order 14:
+  Email to: 012463@naver.com
+  Subject: Discord Points Available - Order-14
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 9MZPUOBU
+  Discord Command: !claim 9MZPUOBU
+  Points: 50
+
+Order 15:
+  Email to: 0127kgr@gmail.com
+  Subject: Discord Points Available - Order-15
+  Message: Your order qualifies for 56 Discord points!
+           Use this code in Discord: !claim AGM6MXKF
+  Discord Command: !claim AGM6MXKF
+  Points: 56
+
+Order 16:
+  Email to: 0128ssuk@gmail.com
+  Subject: Discord Points Available - Order-16
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim YDE7UKT9
+  Discord Command: !claim YDE7UKT9
+  Points: 50
+
+Order 17:
+  Email to: 015best@naver.com
+  Subject: Discord Points Available - Order-17
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 07HWRZZ1
+  Discord Command: !claim 07HWRZZ1
+  Points: 50
+
+Order 18:
+  Email to: 019erm@gmail.com
+  Subject: Discord Points Available - Order-18
+  Message: Your order qualifies for 74 Discord points!
+           Use this code in Discord: !claim SWEJD5ZS
+  Discord Command: !claim SWEJD5ZS
+  Points: 74
+
+Order 19:
+  Email to: 0228amy@gmail.com
+  Subject: Discord Points Available - Order-19
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 65JOPUW9
+  Discord Command: !claim 65JOPUW9
+  Points: 50
+
+Order 20:
+  Email to: 02oppspodcast@gmail.com
+  Subject: Discord Points Available - Order-20
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim OUCOI38Z
+  Discord Command: !claim OUCOI38Z
+  Points: 50
+
+Order 21:
+  Email to: 03.mthinnie@gmail.com
+  Subject: Discord Points Available - Order-21
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim FUZLYZVW
+  Discord Command: !claim FUZLYZVW
+  Points: 50
+
+Order 22:
+  Email to: 031gmlwls@gmail.com
+  Subject: Discord Points Available - Order-22
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim EWWZ89JQ
+  Discord Command: !claim EWWZ89JQ
+  Points: 50
+
+Order 23:
+  Email to: 03ajms@gmail.com
+  Subject: Discord Points Available - Order-23
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim JF08UNJW
+  Discord Command: !claim JF08UNJW
+  Points: 50
+
+Order 24:
+  Email to: 03MABR@GMAIL.COM
+  Subject: Discord Points Available - Order-24
+  Message: Your order qualifies for 91 Discord points!
+           Use this code in Discord: !claim YBLCNV53
+  Discord Command: !claim YBLCNV53
+  Points: 91
+
+Order 25:
+  Email to: 0403nsj@naver.com
+  Subject: Discord Points Available - Order-25
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim MBCCG6SL
+  Discord Command: !claim MBCCG6SL
+  Points: 50
+
+Order 26:
+  Email to: 04061428@naver.com
+  Subject: Discord Points Available - Order-26
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim W682WKMD
+  Discord Command: !claim W682WKMD
+  Points: 50
+
+Order 27:
+  Email to: 0426jea@gmail.com
+  Subject: Discord Points Available - Order-27
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim JOYS67S9
+  Discord Command: !claim JOYS67S9
+  Points: 50
+
+Order 28:
+  Email to: 04beatriz.cardoso@gmail.com
+  Subject: Discord Points Available - Order-28
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim B5357IKN
+  Discord Command: !claim B5357IKN
+  Points: 50
+
+Order 29:
+  Email to: 04lonie@gmail.com
+  Subject: Discord Points Available - Order-29
+  Message: Your order qualifies for 73 Discord points!
+           Use this code in Discord: !claim DMG6H506
+  Discord Command: !claim DMG6H506
+  Points: 73
+
+Order 30:
+  Email to: 04mnieves@gmail.com
+  Subject: Discord Points Available - Order-30
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 8Z157K1S
+  Discord Command: !claim 8Z157K1S
+  Points: 50
+
+Order 31:
+  Email to: 0501jmk@gmail.com
+  Subject: Discord Points Available - Order-31
+  Message: Your order qualifies for 52 Discord points!
+           Use this code in Discord: !claim X81248WZ
+  Discord Command: !claim X81248WZ
+  Points: 52
+
+Order 32:
+  Email to: 0519jihoon@gmail.com
+  Subject: Discord Points Available - Order-32
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 2GAFO36Q
+  Discord Command: !claim 2GAFO36Q
+  Points: 50
+
+Order 33:
+  Email to: 05c30203@gmail.com
+  Subject: Discord Points Available - Order-33
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim MBNXG1D2
+  Discord Command: !claim MBNXG1D2
+  Points: 50
+
+Order 34:
+  Email to: 05corbachoclaudia@gmail.com
+  Subject: Discord Points Available - Order-34
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim VVIP8ENS
+  Discord Command: !claim VVIP8ENS
+  Points: 50
+
+Order 35:
+  Email to: 05jaiden@gmail.com
+  Subject: Discord Points Available - Order-35
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 6AWYIS13
+  Discord Command: !claim 6AWYIS13
+  Points: 50
+
+Order 36:
+  Email to: 05jewel0904@gmail.com
+  Subject: Discord Points Available - Order-36
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim D2N9OXK6
+  Discord Command: !claim D2N9OXK6
+  Points: 50
+
+Order 37:
+  Email to: 0601cjf@gmail.com
+  Subject: Discord Points Available - Order-37
+  Message: Your order qualifies for 112 Discord points!
+           Use this code in Discord: !claim OOREUZDS
+  Discord Command: !claim OOREUZDS
+  Points: 112
+
+Order 38:
+  Email to: 070416jhl@gmail.com
+  Subject: Discord Points Available - Order-38
+  Message: Your order qualifies for 64 Discord points!
+           Use this code in Discord: !claim N99QQ1VY
+  Discord Command: !claim N99QQ1VY
+  Points: 64
+
+Order 39:
+  Email to: 07ksh082107@gmail.com
+  Subject: Discord Points Available - Order-39
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 79DLO7NK
+  Discord Command: !claim 79DLO7NK
+  Points: 50
+
+Order 40:
+  Email to: 081226dahye@kakao.com
+  Subject: Discord Points Available - Order-40
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim N1EVF8Y6
+  Discord Command: !claim N1EVF8Y6
+  Points: 50
+
+Order 41:
+  Email to: 0826carolsandoval@gmail.com
+  Subject: Discord Points Available - Order-41
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim N0UTT37N
+  Discord Command: !claim N0UTT37N
+  Points: 50
+
+Order 42:
+  Email to: 0907bluesky@hanmail.net
+  Subject: Discord Points Available - Order-42
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim O5TGXYO3
+  Discord Command: !claim O5TGXYO3
+  Points: 50
+
+Order 43:
+  Email to: 09cravity@gmail.com
+  Subject: Discord Points Available - Order-43
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 9SMOV7KV
+  Discord Command: !claim 9SMOV7KV
+  Points: 50
+
+Order 44:
+  Email to: 09hyejin24@gmail.com
+  Subject: Discord Points Available - Order-44
+  Message: Your order qualifies for 129 Discord points!
+           Use this code in Discord: !claim WIYA7NJE
+  Discord Command: !claim WIYA7NJE
+  Points: 129
+
+Order 45:
+  Email to: 0bydivide@gmail.com
+  Subject: Discord Points Available - Order-45
+  Message: Your order qualifies for 217 Discord points!
+           Use this code in Discord: !claim 0D1CESZ2
+  Discord Command: !claim 0D1CESZ2
+  Points: 217
+
+Order 46:
+  Email to: 0cassiro0@gmail.com
+  Subject: Discord Points Available - Order-46
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim GZ9HPMAK
+  Discord Command: !claim GZ9HPMAK
+  Points: 50
+
+Order 47:
+  Email to: 0dewwhisker0@gmail.com
+  Subject: Discord Points Available - Order-47
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim O7384OSR
+  Discord Command: !claim O7384OSR
+  Points: 50
+
+Order 48:
+  Email to: 0drakengard@gmail.com
+  Subject: Discord Points Available - Order-48
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim AF431GIJ
+  Discord Command: !claim AF431GIJ
+  Points: 50
+
+Order 49:
+  Email to: 0enyar@gmail.com
+  Subject: Discord Points Available - Order-49
+  Message: Your order qualifies for 98 Discord points!
+           Use this code in Discord: !claim QZB0FEAA
+  Discord Command: !claim QZB0FEAA
+  Points: 98
+
+Order 50:
+  Email to: 0mothball0@gmail.com
+  Subject: Discord Points Available - Order-50
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim V5440GM1
+  Discord Command: !claim V5440GM1
+  Points: 50
+
+Order 51:
+  Email to: 0nerd.person0@gmail.com
+  Subject: Discord Points Available - Order-51
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim VC1JD1P8
+  Discord Command: !claim VC1JD1P8
+  Points: 50
+
+Order 52:
+  Email to: 0pastelspace@gmail.com
+  Subject: Discord Points Available - Order-52
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim PT4WRIWI
+  Discord Command: !claim PT4WRIWI
+  Points: 50
+
+Order 53:
+  Email to: 0phoenixxy0@gmail.com
+  Subject: Discord Points Available - Order-53
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim KKI38LCD
+  Discord Command: !claim KKI38LCD
+  Points: 50
+
+Order 54:
+  Email to: 0rionsb3lt88@gmail.com
+  Subject: Discord Points Available - Order-54
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 3XC11RE6
+  Discord Command: !claim 3XC11RE6
+  Points: 50
+
+Order 55:
+  Email to: 0the.bridged.gap@gmail.com
+  Subject: Discord Points Available - Order-55
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim IGDRD1TT
+  Discord Command: !claim IGDRD1TT
+  Points: 50
+
+Order 56:
+  Email to: 0tkennyn@gmail.com
+  Subject: Discord Points Available - Order-56
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim T9X1A6BB
+  Discord Command: !claim T9X1A6BB
+  Points: 50
+
+Order 57:
+  Email to: 0urs0ci3ti@gmail.com
+  Subject: Discord Points Available - Order-57
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim Y4TLPCIP
+  Discord Command: !claim Y4TLPCIP
+  Points: 50
+
+Order 58:
+  Email to: 0waff537@gmail.com
+  Subject: Discord Points Available - Order-58
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 2PKGQR5B
+  Discord Command: !claim 2PKGQR5B
+  Points: 50
+
+Order 59:
+  Email to: 0xycleannnn@gmail.com
+  Subject: Discord Points Available - Order-59
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim UA01LHRE
+  Discord Command: !claim UA01LHRE
+  Points: 50
+
+Order 60:
+  Email to: 1001cookiez@gmail.com
+  Subject: Discord Points Available - Order-60
+  Message: Your order qualifies for 50 Discord points!
+           Use this code in Discord: !claim 8ZMH6VDO
+  Discord Command: !claim 8ZMH6VDO
+  Points: 50
+
+
+==================================================
+OPTION 2: Direct Discord Commands (if you know usernames)
+--------------------------------------------------
+Use these if you know Discord usernames:
+
+# Order 1: 00.astr1cz.00@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 2: 000mapleleaf000@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 3: 000yuz000@gmail.com - 113 points
+!silentadd @username 113
+
+# Order 4: 0046foursix@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 5: 007vandacypriano@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 6: 00chewi.uwu@gmail.com - 160 points
+!silentadd @username 160
+
+# Order 7: 00kayxes@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 8: 00yagumin@gmail.com - 95 points
+!silentadd @username 95
+
+# Order 9: 01038854837a@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 10: 01053540600ab@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 11: 01091804366aa@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 12: 01094180125h@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 13: 01095260103@daum.net - 52 points
+!silentadd @username 52
+
+# Order 14: 012463@naver.com - 50 points
+!silentadd @username 50
+
+# Order 15: 0127kgr@gmail.com - 56 points
+!silentadd @username 56
+
+# Order 16: 0128ssuk@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 17: 015best@naver.com - 50 points
+!silentadd @username 50
+
+# Order 18: 019erm@gmail.com - 74 points
+!silentadd @username 74
+
+# Order 19: 0228amy@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 20: 02oppspodcast@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 21: 03.mthinnie@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 22: 031gmlwls@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 23: 03ajms@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 24: 03MABR@GMAIL.COM - 91 points
+!silentadd @username 91
+
+# Order 25: 0403nsj@naver.com - 50 points
+!silentadd @username 50
+
+# Order 26: 04061428@naver.com - 50 points
+!silentadd @username 50
+
+# Order 27: 0426jea@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 28: 04beatriz.cardoso@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 29: 04lonie@gmail.com - 73 points
+!silentadd @username 73
+
+# Order 30: 04mnieves@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 31: 0501jmk@gmail.com - 52 points
+!silentadd @username 52
+
+# Order 32: 0519jihoon@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 33: 05c30203@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 34: 05corbachoclaudia@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 35: 05jaiden@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 36: 05jewel0904@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 37: 0601cjf@gmail.com - 112 points
+!silentadd @username 112
+
+# Order 38: 070416jhl@gmail.com - 64 points
+!silentadd @username 64
+
+# Order 39: 07ksh082107@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 40: 081226dahye@kakao.com - 50 points
+!silentadd @username 50
+
+# Order 41: 0826carolsandoval@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 42: 0907bluesky@hanmail.net - 50 points
+!silentadd @username 50
+
+# Order 43: 09cravity@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 44: 09hyejin24@gmail.com - 129 points
+!silentadd @username 129
+
+# Order 45: 0bydivide@gmail.com - 217 points
+!silentadd @username 217
+
+# Order 46: 0cassiro0@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 47: 0dewwhisker0@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 48: 0drakengard@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 49: 0enyar@gmail.com - 98 points
+!silentadd @username 98
+
+# Order 50: 0mothball0@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 51: 0nerd.person0@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 52: 0pastelspace@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 53: 0phoenixxy0@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 54: 0rionsb3lt88@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 55: 0the.bridged.gap@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 56: 0tkennyn@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 57: 0urs0ci3ti@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 58: 0waff537@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 59: 0xycleannnn@gmail.com - 50 points
+!silentadd @username 50
+
+# Order 60: 1001cookiez@gmail.com - 50 points
+!silentadd @username 50
+
+
+==================================================
+VERIFICATION CODES FOR REFERENCE:
+------------------------------
+IYBF8QP2 -> 00.astr1cz.00@gmail.com (50 points)
+M31JF85Z -> 000mapleleaf000@gmail.com (50 points)
+LXU0F2WP -> 000yuz000@gmail.com (113 points)
+250B34I9 -> 0046foursix@gmail.com (50 points)
+TL7EALO5 -> 007vandacypriano@gmail.com (50 points)
+IBEEPUIZ -> 00chewi.uwu@gmail.com (160 points)
+ROVJZYUI -> 00kayxes@gmail.com (50 points)
+QC3YBTNT -> 00yagumin@gmail.com (95 points)
+592ROZV7 -> 01038854837a@gmail.com (50 points)
+4KLK4V96 -> 01053540600ab@gmail.com (50 points)
+8DVF5NFI -> 01091804366aa@gmail.com (50 points)
+2ZQGXMSV -> 01094180125h@gmail.com (50 points)
+PDAXFSEO -> 01095260103@daum.net (52 points)
+9MZPUOBU -> 012463@naver.com (50 points)
+AGM6MXKF -> 0127kgr@gmail.com (56 points)
+YDE7UKT9 -> 0128ssuk@gmail.com (50 points)
+07HWRZZ1 -> 015best@naver.com (50 points)
+SWEJD5ZS -> 019erm@gmail.com (74 points)
+65JOPUW9 -> 0228amy@gmail.com (50 points)
+OUCOI38Z -> 02oppspodcast@gmail.com (50 points)
+FUZLYZVW -> 03.mthinnie@gmail.com (50 points)
+EWWZ89JQ -> 031gmlwls@gmail.com (50 points)
+JF08UNJW -> 03ajms@gmail.com (50 points)
+YBLCNV53 -> 03MABR@GMAIL.COM (91 points)
+MBCCG6SL -> 0403nsj@naver.com (50 points)
+W682WKMD -> 04061428@naver.com (50 points)
+JOYS67S9 -> 0426jea@gmail.com (50 points)
+B5357IKN -> 04beatriz.cardoso@gmail.com (50 points)
+DMG6H506 -> 04lonie@gmail.com (73 points)
+8Z157K1S -> 04mnieves@gmail.com (50 points)
+X81248WZ -> 0501jmk@gmail.com (52 points)
+2GAFO36Q -> 0519jihoon@gmail.com (50 points)
+MBNXG1D2 -> 05c30203@gmail.com (50 points)
+VVIP8ENS -> 05corbachoclaudia@gmail.com (50 points)
+6AWYIS13 -> 05jaiden@gmail.com (50 points)
+D2N9OXK6 -> 05jewel0904@gmail.com (50 points)
+OOREUZDS -> 0601cjf@gmail.com (112 points)
+N99QQ1VY -> 070416jhl@gmail.com (64 points)
+79DLO7NK -> 07ksh082107@gmail.com (50 points)
+N1EVF8Y6 -> 081226dahye@kakao.com (50 points)
+N0UTT37N -> 0826carolsandoval@gmail.com (50 points)
+O5TGXYO3 -> 0907bluesky@hanmail.net (50 points)
+9SMOV7KV -> 09cravity@gmail.com (50 points)
+WIYA7NJE -> 09hyejin24@gmail.com (129 points)
+0D1CESZ2 -> 0bydivide@gmail.com (217 points)
+GZ9HPMAK -> 0cassiro0@gmail.com (50 points)
+O7384OSR -> 0dewwhisker0@gmail.com (50 points)
+AF431GIJ -> 0drakengard@gmail.com (50 points)
+QZB0FEAA -> 0enyar@gmail.com (98 points)
+V5440GM1 -> 0mothball0@gmail.com (50 points)
+VC1JD1P8 -> 0nerd.person0@gmail.com (50 points)
+PT4WRIWI -> 0pastelspace@gmail.com (50 points)
+KKI38LCD -> 0phoenixxy0@gmail.com (50 points)
+3XC11RE6 -> 0rionsb3lt88@gmail.com (50 points)
+IGDRD1TT -> 0the.bridged.gap@gmail.com (50 points)
+T9X1A6BB -> 0tkennyn@gmail.com (50 points)
+Y4TLPCIP -> 0urs0ci3ti@gmail.com (50 points)
+2PKGQR5B -> 0waff537@gmail.com (50 points)
+UA01LHRE -> 0xycleannnn@gmail.com (50 points)
+8ZMH6VDO -> 1001cookiez@gmail.com (50 points)
