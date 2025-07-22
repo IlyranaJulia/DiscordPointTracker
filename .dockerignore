@@ -1,0 +1,53 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database files (will be created in container)
+*.db
+points.db
+
+# Logs
+*.log
+bot.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Replit specific
+.replit
+uv.lock
+
+# Testing and temp files
+test_*
+temp/
+tmp/
+
+# Customer data
+customer_orders.csv
+example_orders.csv
+full_order_database.csv
+attached_assets/

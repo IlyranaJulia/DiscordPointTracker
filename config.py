@@ -8,8 +8,8 @@ class Config:
     BOT_TOKEN: str = os.getenv("BOT_TOKEN", "your_bot_token_here")
     COMMAND_PREFIX: str = os.getenv("COMMAND_PREFIX", "!")
     
-    # Database configuration
-    DATABASE_PATH: str = os.getenv("DATABASE_PATH", "points.db")
+    # Database configuration - Use persistent storage on Fly.io
+    DATABASE_PATH: str = os.getenv("DATABASE_PATH", "/data/points.db" if os.path.exists("/data") else "points.db")
     
     # Bot settings
     MAX_POINTS_PER_TRANSACTION: int = int(os.getenv("MAX_POINTS_PER_TRANSACTION", "1000000"))
