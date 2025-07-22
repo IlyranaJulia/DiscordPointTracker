@@ -36,9 +36,10 @@ class OrderProcessor:
                 reader = csv.DictReader(csvfile, delimiter=delimiter)
                 
                 for row_num, row in enumerate(reader, start=2):
-                    # Look for email columns (case insensitive)
+                    # Look for email and amount columns (case insensitive)
                     email = None
                     order_id = None
+                    order_amount = None
                     
                     for key, value in row.items():
                         key_lower = key.lower().strip()
@@ -46,12 +47,24 @@ class OrderProcessor:
                             email = value.strip()
                         elif 'order' in key_lower or 'id' in key_lower:
                             order_id = value.strip()
+                        elif any(term in key_lower for term in ['amount', 'total', 'price', 'cost']):
+                            try:
+                                order_amount = float(str(value).replace('$', '').replace(',', '').strip())
+                            except:
+                                order_amount = None
                     
                     if email and '@' in email:
+                        # Calculate points based on order amount if available
+                        calculated_points = points_per_order
+                        if order_amount and order_amount > 0:
+                            # Optional: scale points based on order amount (1 point per dollar)
+                            calculated_points = max(int(order_amount), points_per_order)
+                        
                         orders.append({
                             'email': email,
                             'order_id': order_id or f"Order-{row_num}",
-                            'points': points_per_order,
+                            'order_amount': order_amount or 0,
+                            'points': calculated_points,
                             'row': row_num
                         })
                     else:
@@ -154,6 +167,8 @@ class OrderProcessor:
                 <p>Hello!</p>
                 
                 <p>Your order <strong>{order_id}</strong> qualifies for <strong>{points} Discord points</strong> in our {server_name}!</p>
+                
+                {f'<p style="color: #666;">Order Amount: <strong>${order_amount:.2f}</strong></p>' if hasattr(locals(), 'order_amount') and order_amount else ''}
                 
                 <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <h3>How to claim your points:</h3>

@@ -1,6 +1,6 @@
-customer_email,order_id,purchase_amount,order_date
-john.doe@example.com,ORD-001,29.99,2025-07-20
-jane.smith@example.com,ORD-002,49.99,2025-07-21
-mike.johnson@example.com,ORD-003,19.99,2025-07-21
-sarah.wilson@example.com,ORD-004,99.99,2025-07-22
-alex.brown@example.com,ORD-005,39.99,2025-07-22
+email,amount
+john.doe@example.com,29.99
+jane.smith@example.com,49.99
+mike.johnson@example.com,19.99
+sarah.wilson@example.com,99.99
+alex.brown@example.com,39.99
