@@ -23,6 +23,9 @@ The application follows a modular architecture with clear separation of concerns
 - **Transaction Logging**: Complete audit trail for all point operations
 - **Achievement System**: User achievements with bonus point rewards
 - **Analytics Dashboard**: User statistics and database administration tools
+- **Order Processing System**: Automated point distribution via email verification
+- **SendGrid Integration**: Professional email notifications for order rewards
+- **CSV Order Import**: Bulk processing of customer order data files
 
 ## Key Components
 
