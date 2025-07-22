@@ -1367,22 +1367,7 @@ async def help_command(ctx):
         inline=False
     )
     
-    # Admin commands
-    embed.add_field(
-        name="👑 Admin Commands",
-        value=f"**Web Dashboard**: All point management (add/remove/set) now done through admin web interface\n"
-              f"**Email Management**: View and process all user email submissions through dashboard\n"
-              f"**Access Dashboard**: Visit the web interface for complete email and points management",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="ℹ️ Information",
-        value="• Admin commands require Administrator permission\n"
-              "• Points cannot go below 0\n"
-              "• Use command aliases for faster typing",
-        inline=False
-    )
+
     
     embed.set_footer(text=f"Bot made with ❤️ | Prefix: {Config.COMMAND_PREFIX}")
     
