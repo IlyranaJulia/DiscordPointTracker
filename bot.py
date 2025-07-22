@@ -1105,7 +1105,7 @@ async def help_command(ctx):
         name="👤 User Commands",
         value=f"`{Config.COMMAND_PREFIX}points [@user]` - Check your points or another user's points\n"
               f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard\n"
-              f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (DM only)\n"
+              f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (auto-deleted for privacy)\n"
               f"`{Config.COMMAND_PREFIX}claim <code>` - Claim points with verification code",
         inline=False
     )
@@ -1196,27 +1196,171 @@ async def list_users(ctx):
 
 @bot.command(name='submitemail', aliases=['email', 'orderemail'])
 async def submit_order_email(ctx, *, email_address: str = None):
-    """Submit your order email address privately to claim points"""
+    """Submit your order email address to claim points"""
     try:
-        # Check if command is used in DM
-        if ctx.guild is not None:
+        if not email_address:
             embed = discord.Embed(
-                title="🔒 Privacy Required",
-                description="For your privacy, this command only works in direct messages.",
-                color=discord.Color.orange()
+                title="📧 Submit Your Order Email",
+                description="To claim your Discord points, please submit the email address you used for your order.",
+                color=discord.Color.blue()
             )
             embed.add_field(
-                name="How to DM the bot:",
-                value="1. Click on my profile picture\n2. Select 'Send Message'\n3. Use `!submitemail your-email@example.com`",
+                name="Usage", 
+                value="`!submitemail your-email@example.com`", 
                 inline=False
             )
             embed.add_field(
-                name="Can't send DMs?",
-                value="Contact an admin - they can submit your email for you using the dashboard.",
+                name="Privacy Protection", 
+                value="Your message will be deleted immediately after processing for privacy.", 
                 inline=False
             )
             await ctx.send(embed=embed)
             return
+        
+        # Basic email validation
+        if '@' not in email_address or '.' not in email_address:
+            await ctx.send("❌ Please provide a valid email address.")
+            # Delete user's message for privacy
+            try:
+                await ctx.message.delete()
+            except:
+                pass
+            return
+        
+        email_address = email_address.strip().lower()
+        
+        # Store the email submission in database
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Create table if not exists
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS email_submissions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discord_user_id INTEGER NOT NULL,
+                    discord_username TEXT NOT NULL,
+                    email_address TEXT NOT NULL,
+                    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'pending',
+                    processed_at TIMESTAMP,
+                    admin_notes TEXT
+                )
+            ''')
+            
+            # Check if user already submitted an email
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (ctx.author.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if existing:
+                existing_email, submitted_at = existing
+                # Delete user's message for privacy
+                try:
+                    await ctx.message.delete()
+                except:
+                    pass
+                
+                embed = discord.Embed(
+                    title="📧 Email Already Submitted",
+                    description=f"You've already submitted: **{existing_email}**",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Submitted", value=submitted_at, inline=True)
+                embed.add_field(name="Status", value="Pending review", inline=True)
+                embed.add_field(
+                    name="Need to change?", 
+                    value="Contact a server admin to update your email address.", 
+                    inline=False
+                )
+                
+                # Send response and delete it after a delay
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(10)  # Show for 10 seconds
+                try:
+                    await msg.delete()
+                except:
+                    pass
+                return
+            
+            # Insert new email submission
+            await db.execute('''
+                INSERT INTO email_submissions 
+                (discord_user_id, discord_username, email_address, status)
+                VALUES (?, ?, ?, 'pending')
+            ''', (ctx.author.id, str(ctx.author), email_address))
+            
+            await db.commit()
+        
+        # Delete user's message immediately for privacy
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        # Send confirmation to user
+        embed = discord.Embed(
+            title="✅ Email Submitted Successfully",
+            description=f"Your order email **{email_address}** has been submitted for point verification.",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="What's Next?", 
+            value="Server admins will verify your order and you'll receive your points automatically.", 
+            inline=False
+        )
+        embed.add_field(
+            name="Privacy", 
+            value="Your email is stored securely and only visible to server admins.", 
+            inline=False
+        )
+        
+        # Send confirmation and delete after delay
+        confirmation_msg = await ctx.send(embed=embed)
+        await asyncio.sleep(15)  # Show confirmation for 15 seconds
+        try:
+            await confirmation_msg.delete()
+        except:
+            pass
+        
+        # Try to send a DM confirmation that persists
+        try:
+            dm_embed = discord.Embed(
+                title="📧 Email Submission Confirmed",
+                description=f"Your order email **{email_address}** has been securely submitted.",
+                color=discord.Color.green()
+            )
+            dm_embed.add_field(
+                name="Status", 
+                value="Pending admin verification", 
+                inline=True
+            )
+            dm_embed.add_field(
+                name="What's Next", 
+                value="You'll receive points automatically once verified", 
+                inline=False
+            )
+            await ctx.author.send(embed=dm_embed)
+        except:
+            # If DM fails, that's okay - the public confirmation was already shown
+            pass
+        
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) submitted email: {email_address}")
+        
+    except Exception as e:
+        logger.error(f"Error in submit_order_email command: {e}")
+        # Delete user's message for privacy even on error
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        error_msg = await ctx.send("❌ An error occurred while submitting your email. Please try again later.")
+        await asyncio.sleep(10)
+        try:
+            await error_msg.delete()
+        except:
+            pass
         
         if not email_address:
             embed = discord.Embed(

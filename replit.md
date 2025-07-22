@@ -30,6 +30,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Claim System**: !claim command enables customers to redeem points using verification codes
 - **Points Calculation**: Automatic calculation based on order amount (1 amount = 1 point exactly)
 - **Database Reset**: All points and verification codes cleared for official program launch
+- **Self-Service Email Submission**: Users can submit emails directly with automatic privacy protection
 
 ## Key Components
 
