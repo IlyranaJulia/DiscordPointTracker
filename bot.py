@@ -1107,6 +1107,8 @@ async def help_command(ctx):
         value=f"`{Config.COMMAND_PREFIX}points [@user]` - Check your points or another user's points\n"
               f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard\n"
               f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (auto-deleted for privacy)\n"
+              f"`{Config.COMMAND_PREFIX}updateemail <email>` - Update your submitted email\n"
+              f"`{Config.COMMAND_PREFIX}myemail` - Check your email submission status\n"
               f"`{Config.COMMAND_PREFIX}claim <code>` - Claim points with verification code",
         inline=False
     )
@@ -1424,10 +1426,17 @@ async def submit_order_email(ctx, *, email_address: str = None):
                 embed.add_field(name="Status", value="Pending review", inline=True)
                 embed.add_field(
                     name="Need to change?", 
-                    value="Contact a server admin to update your email address.", 
+                    value="Use `!updateemail new-email@example.com` to update it.", 
                     inline=False
                 )
-                await ctx.send(embed=embed)
+                
+                # Send response and delete it after a delay
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(10)
+                try:
+                    await msg.delete()
+                except:
+                    pass
                 return
             
             # Insert new email submission
@@ -1508,6 +1517,223 @@ async def claim_points(ctx, verification_code: str = None):
     except Exception as e:
         logger.error(f"Error in claim command: {e}")
         await ctx.send("❌ An error occurred while processing your claim. Please try again later.")
+
+@bot.command(name='updateemail', aliases=['changeemail', 'newemail'])
+async def update_email(ctx, *, new_email_address: str = None):
+    """Update your previously submitted email address"""
+    try:
+        if not new_email_address:
+            embed = discord.Embed(
+                title="📧 Update Your Email",
+                description="Change your previously submitted order email address.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="Usage", 
+                value="`!updateemail your-new-email@example.com`", 
+                inline=False
+            )
+            embed.add_field(
+                name="Privacy Protection", 
+                value="Your message will be deleted immediately after processing.", 
+                inline=False
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # Basic email validation
+        if '@' not in new_email_address or '.' not in new_email_address:
+            await ctx.send("❌ Please provide a valid email address.")
+            try:
+                await ctx.message.delete()
+            except:
+                pass
+            return
+        
+        new_email_address = new_email_address.strip().lower()
+        
+        # Update email submission in database
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Check if user has an existing submission
+            cursor = await db.execute('''
+                SELECT id, email_address FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (ctx.author.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if not existing:
+                # Delete user's message for privacy
+                try:
+                    await ctx.message.delete()
+                except:
+                    pass
+                
+                embed = discord.Embed(
+                    title="❌ No Email Submission Found",
+                    description="You haven't submitted an email yet. Use `!submitemail` first.",
+                    color=discord.Color.red()
+                )
+                embed.add_field(
+                    name="How to submit:", 
+                    value="`!submitemail your-email@example.com`", 
+                    inline=False
+                )
+                
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(10)
+                try:
+                    await msg.delete()
+                except:
+                    pass
+                return
+            
+            submission_id, old_email = existing
+            
+            # Update the email address
+            await db.execute('''
+                UPDATE email_submissions 
+                SET email_address = ?, submitted_at = CURRENT_TIMESTAMP,
+                    admin_notes = COALESCE(admin_notes, '') || 'Updated from: ' || ? || ' | '
+                WHERE id = ?
+            ''', (new_email_address, old_email, submission_id))
+            
+            await db.commit()
+        
+        # Delete user's message immediately for privacy
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        # Send confirmation
+        embed = discord.Embed(
+            title="✅ Email Updated Successfully",
+            description=f"Your email has been updated to: **{new_email_address}**",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="Previous Email", 
+            value=old_email, 
+            inline=True
+        )
+        embed.add_field(
+            name="Status", 
+            value="Pending admin verification", 
+            inline=True
+        )
+        
+        # Send confirmation and delete after delay
+        confirmation_msg = await ctx.send(embed=embed)
+        await asyncio.sleep(15)
+        try:
+            await confirmation_msg.delete()
+        except:
+            pass
+        
+        # Try to send DM confirmation
+        try:
+            dm_embed = discord.Embed(
+                title="📧 Email Updated",
+                description=f"Your order email has been updated to: **{new_email_address}**",
+                color=discord.Color.green()
+            )
+            dm_embed.add_field(
+                name="Previous Email", 
+                value=old_email, 
+                inline=False
+            )
+            dm_embed.add_field(
+                name="Status", 
+                value="Pending admin verification", 
+                inline=False
+            )
+            await ctx.author.send(embed=dm_embed)
+        except:
+            pass
+        
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) updated email from {old_email} to {new_email_address}")
+        
+    except Exception as e:
+        logger.error(f"Error in update_email command: {e}")
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+        
+        error_msg = await ctx.send("❌ An error occurred while updating your email. Please try again later.")
+        await asyncio.sleep(10)
+        try:
+            await error_msg.delete()
+        except:
+            pass
+
+@bot.command(name='myemail', aliases=['checkemail', 'emailstatus'])
+async def check_my_email(ctx):
+    """Check your current email submission status"""
+    try:
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at, status, processed_at
+                FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+                ORDER BY submitted_at DESC
+                LIMIT 1
+            ''', (ctx.author.id,))
+            
+            submission = await cursor.fetchone()
+        
+        if not submission:
+            embed = discord.Embed(
+                title="📧 No Email Submission",
+                description="You haven't submitted an email yet.",
+                color=discord.Color.orange()
+            )
+            embed.add_field(
+                name="How to submit:", 
+                value="`!submitemail your-email@example.com`", 
+                inline=False
+            )
+        else:
+            email, submitted_at, status, processed_at = submission
+            embed = discord.Embed(
+                title="📧 Your Email Submission",
+                description=f"**Email:** {email}",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Status", value=status.title(), inline=True)
+            embed.add_field(name="Submitted", value=submitted_at, inline=True)
+            if processed_at:
+                embed.add_field(name="Processed", value=processed_at, inline=True)
+            
+            embed.add_field(
+                name="Need to change?", 
+                value="`!updateemail new-email@example.com`", 
+                inline=False
+            )
+        
+        # Send as DM if possible, otherwise send in channel and delete
+        try:
+            await ctx.author.send(embed=embed)
+            # If DM works, send a brief public message
+            msg = await ctx.send("📧 Check your DMs for email status information.")
+            await asyncio.sleep(5)
+            try:
+                await msg.delete()
+            except:
+                pass
+        except:
+            # If DM fails, send in channel and delete after delay
+            msg = await ctx.send(embed=embed)
+            await asyncio.sleep(15)
+            try:
+                await msg.delete()
+            except:
+                pass
+        
+    except Exception as e:
+        logger.error(f"Error in check_my_email command: {e}")
+        await ctx.send("❌ An error occurred while checking your email status.")
 
 async def main():
     """Main function to run the bot"""
