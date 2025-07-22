@@ -8,6 +8,7 @@ import threading
 from flask import Flask, request, jsonify
 from config import Config
 from database import PointsDatabase
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -117,14 +118,48 @@ def dashboard():
         <div class="container">
             <div class="nav">
                 <a href="/" >← Home</a>
-                <a href="#" onclick="showSection('points')" class="active">Points Management</a>
+                <a href="#" onclick="showSection('emails')" class="active">Email Submissions</a>
+                <a href="#" onclick="showSection('points')">Points Management</a>
                 <a href="#" onclick="showSection('database')">Database Admin</a>
                 <a href="#" onclick="showSection('achievements')">Achievements</a>
                 <a href="#" onclick="showSection('analytics')">Analytics</a>
             </div>
             
+            <!-- Email Submissions Section -->
+            <div id="emails-section">
+                <div class="card">
+                    <h3>📧 Email Submissions Management</h3>
+                    <p>Manage user email submissions for order verification and point distribution</p>
+                    
+                    <div class="form-group">
+                        <button onclick="loadEmailSubmissions()" class="refresh-btn">🔄 Refresh Submissions</button>
+                        <button onclick="exportEmailSubmissions()" class="export-btn">📥 Export to CSV</button>
+                        <button onclick="clearProcessedEmails()" class="clear-btn" style="background: #dc3545; margin-left: 10px;">🗑️ Clear Processed</button>
+                    </div>
+                    
+                    <div class="stats-grid" style="margin: 20px 0;">
+                        <div class="stat-box">
+                            <div class="stat-number" id="pending-count">-</div>
+                            <div>Pending Submissions</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="processed-count">-</div>
+                            <div>Processed Submissions</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="total-emails">-</div>
+                            <div>Total Submissions</div>
+                        </div>
+                    </div>
+                    
+                    <div id="email-submissions-container">
+                        <div class="loading">Loading email submissions...</div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Points Management Section -->
-            <div id="points-section">
+            <div id="points-section" class="hidden">
                 <div class="grid">
                     <div class="card">
                         <h3>🎛️ Manage Points</h3>
@@ -394,6 +429,149 @@ def dashboard():
                     }
                 });
             });
+
+            // Email submissions functions
+            async function loadEmailSubmissions() {
+                try {
+                    const response = await fetch('/api/email_submissions');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayEmailSubmissions(data.submissions, data.stats);
+                    } else {
+                        document.getElementById('email-submissions-container').innerHTML = 
+                            '<div style="color: red; padding: 10px;">Failed to load email submissions</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('email-submissions-container').innerHTML = 
+                        '<div style="color: red; padding: 10px;">Error: ' + error.message + '</div>';
+                }
+            }
+
+            function displayEmailSubmissions(submissions, stats) {
+                document.getElementById('pending-count').textContent = stats.pending || 0;
+                document.getElementById('processed-count').textContent = stats.processed || 0;
+                document.getElementById('total-emails').textContent = stats.total || 0;
+                
+                const container = document.getElementById('email-submissions-container');
+                
+                if (!submissions || submissions.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No email submissions found</div>';
+                    return;
+                }
+                
+                let html = '<table><thead><tr>';
+                html += '<th>Discord User</th><th>User ID</th><th>Email</th><th>Status</th>';
+                html += '<th>Submitted</th><th>Actions</th></tr></thead><tbody>';
+                
+                submissions.forEach(sub => {
+                    const statusColor = sub.status === 'pending' ? '#ffc107' : '#28a745';
+                    html += '<tr>';
+                    html += '<td><strong>' + sub.discord_username + '</strong></td>';
+                    html += '<td><code style="font-size: 11px;">' + sub.discord_user_id + '</code></td>';
+                    html += '<td><strong>' + sub.email_address + '</strong></td>';
+                    html += '<td><span style="background: ' + statusColor + '; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">' + sub.status.toUpperCase() + '</span></td>';
+                    html += '<td style="font-size: 12px;">' + new Date(sub.submitted_at).toLocaleString() + '</td>';
+                    html += '<td>';
+                    if (sub.status === 'pending') {
+                        html += '<button onclick="markEmailProcessed(' + sub.id + ')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✓ Processed</button>';
+                    }
+                    html += '<button onclick="deleteEmailSubmission(' + sub.id + ')" style="background: #dc3545; font-size: 12px; padding: 4px 8px; color: white; border: none; border-radius: 3px;">🗑️ Delete</button>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            }
+
+            async function markEmailProcessed(submissionId) {
+                if (!confirm('Mark this email submission as processed?')) return;
+                
+                try {
+                    const response = await fetch('/api/process_email_submission', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ submission_id: submissionId })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadEmailSubmissions();
+                        alert('Email submission marked as processed!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function deleteEmailSubmission(submissionId) {
+                if (!confirm('Delete this email submission? This cannot be undone.')) return;
+                
+                try {
+                    const response = await fetch('/api/delete_email_submission', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ submission_id: submissionId })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadEmailSubmissions();
+                        alert('Email submission deleted!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function exportEmailSubmissions() {
+                try {
+                    const response = await fetch('/api/export_email_submissions');
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'email_submissions_' + new Date().toISOString().split('T')[0] + '.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    alert('Email submissions exported successfully!');
+                } catch (error) {
+                    alert('Error exporting: ' + error.message);
+                }
+            }
+
+            async function clearProcessedEmails() {
+                if (!confirm('Delete all processed email submissions? This cannot be undone.')) return;
+                
+                try {
+                    const response = await fetch('/api/clear_processed_emails', {
+                        method: 'POST'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadEmailSubmissions();
+                        alert('Processed emails cleared!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            // Load email submissions when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                loadEmailSubmissions();
+            });
+
         </script>
     </body>
     </html>
@@ -777,6 +955,232 @@ def user_analytics():
             
     except Exception as e:
         logger.error(f"Error getting user analytics: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/email_submissions", methods=["GET"])
+def get_email_submissions():
+    """API endpoint to get all email submissions"""
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            async def fetch_submissions():
+                async with aiosqlite.connect('points.db') as db:
+                    # Get all submissions
+                    cursor = await db.execute('''
+                        SELECT id, discord_user_id, discord_username, email_address, 
+                               submitted_at, status, processed_at, admin_notes
+                        FROM email_submissions 
+                        ORDER BY submitted_at DESC
+                    ''')
+                    submissions = await cursor.fetchall()
+                    
+                    # Get stats
+                    stats_cursor = await db.execute('''
+                        SELECT 
+                            COUNT(*) as total,
+                            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                            SUM(CASE WHEN status = 'processed' THEN 1 ELSE 0 END) as processed
+                        FROM email_submissions
+                    ''')
+                    stats = await stats_cursor.fetchone()
+                    
+                    return submissions, stats
+            
+            submissions_data, stats_data = loop.run_until_complete(fetch_submissions())
+            
+            submissions = []
+            for row in submissions_data:
+                submissions.append({
+                    'id': row[0],
+                    'discord_user_id': row[1],
+                    'discord_username': row[2],
+                    'email_address': row[3],
+                    'submitted_at': row[4],
+                    'status': row[5],
+                    'processed_at': row[6],
+                    'admin_notes': row[7]
+                })
+            
+            stats = {
+                'total': stats_data[0] if stats_data else 0,
+                'pending': stats_data[1] if stats_data else 0,
+                'processed': stats_data[2] if stats_data else 0
+            }
+            
+            return jsonify({
+                "success": True,
+                "submissions": submissions,
+                "stats": stats
+            })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting email submissions: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/process_email_submission", methods=["POST"])
+def process_email_submission():
+    """API endpoint to mark email submission as processed"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        submission_id = data.get('submission_id')
+        if not submission_id:
+            return jsonify({"success": False, "error": "Submission ID is required"})
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            async def mark_processed():
+                async with aiosqlite.connect('points.db') as db:
+                    await db.execute('''
+                        UPDATE email_submissions 
+                        SET status = 'processed', processed_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (submission_id,))
+                    await db.commit()
+                    return True
+            
+            success = loop.run_until_complete(mark_processed())
+            
+            if success:
+                return jsonify({"success": True, "message": "Email submission marked as processed"})
+            else:
+                return jsonify({"success": False, "error": "Failed to update submission"})
+                
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error processing email submission: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/delete_email_submission", methods=["POST"])
+def delete_email_submission():
+    """API endpoint to delete email submission"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        submission_id = data.get('submission_id')
+        if not submission_id:
+            return jsonify({"success": False, "error": "Submission ID is required"})
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            async def delete_submission():
+                async with aiosqlite.connect('points.db') as db:
+                    await db.execute('DELETE FROM email_submissions WHERE id = ?', (submission_id,))
+                    await db.commit()
+                    return True
+            
+            success = loop.run_until_complete(delete_submission())
+            
+            if success:
+                return jsonify({"success": True, "message": "Email submission deleted"})
+            else:
+                return jsonify({"success": False, "error": "Failed to delete submission"})
+                
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error deleting email submission: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_email_submissions", methods=["GET"])
+def export_email_submissions():
+    """API endpoint to export email submissions as CSV"""
+    try:
+        import asyncio
+        import csv
+        from io import StringIO
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            async def fetch_all_submissions():
+                async with aiosqlite.connect('points.db') as db:
+                    cursor = await db.execute('''
+                        SELECT discord_user_id, discord_username, email_address, 
+                               submitted_at, status, processed_at, admin_notes
+                        FROM email_submissions 
+                        ORDER BY submitted_at DESC
+                    ''')
+                    return await cursor.fetchall()
+            
+            submissions = loop.run_until_complete(fetch_all_submissions())
+            
+            # Create CSV content
+            output = StringIO()
+            writer = csv.writer(output)
+            
+            # Write header
+            writer.writerow(['Discord_User_ID', 'Discord_Username', 'Email_Address', 'Submitted_At', 'Status', 'Processed_At', 'Admin_Notes'])
+            
+            # Write data
+            for row in submissions:
+                writer.writerow(row)
+            
+            csv_content = output.getvalue()
+            output.close()
+            
+            # Return as downloadable file
+            from flask import Response
+            return Response(
+                csv_content,
+                mimetype='text/csv',
+                headers={"Content-disposition": f"attachment; filename=email_submissions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
+            )
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error exporting email submissions: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/clear_processed_emails", methods=["POST"])
+def clear_processed_emails():
+    """API endpoint to delete all processed email submissions"""
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            async def clear_processed():
+                async with aiosqlite.connect('points.db') as db:
+                    cursor = await db.execute('DELETE FROM email_submissions WHERE status = "processed"')
+                    await db.commit()
+                    return cursor.rowcount if hasattr(cursor, 'rowcount') else 0
+            
+            deleted_count = loop.run_until_complete(clear_processed())
+            
+            return jsonify({
+                "success": True, 
+                "message": f"Deleted {deleted_count} processed email submissions"
+            })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error clearing processed emails: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/status")
