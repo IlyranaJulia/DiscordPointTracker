@@ -29,7 +29,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Automated Command Sync**: Bot successfully syncs 7 slash commands on startup
 - **Modern Discord Integration**: Full compatibility with Discord's latest command interface standards
 - **Web Dashboard**: Fully functional admin panel on port 5000
-- **Fly.io Deployment Ready**: Complete deployment configuration for 24/7 hosting
+- **Fly.io Deployment Optimized**: Updated configuration for reliable 24/7 hosting with 1GB memory, persistent storage, and no SendGrid dependencies
 
 ## Key Components
 
