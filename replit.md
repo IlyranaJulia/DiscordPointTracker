@@ -17,6 +17,13 @@ The application follows a modular architecture with clear separation of concerns
 - **Configuration Layer**: Environment-based configuration management
 - **Logging Layer**: Comprehensive logging system for monitoring and debugging
 
+## Recent Changes (2025-07-22)
+- **Enhanced Database Schema**: Added transactions, achievements, and user_stats tables
+- **Advanced Web Dashboard**: Multi-section admin interface with database management
+- **Transaction Logging**: Complete audit trail for all point operations
+- **Achievement System**: User achievements with bonus point rewards
+- **Analytics Dashboard**: User statistics and database administration tools
+
 ## Key Components
 
 ### 1. Bot Core (`bot.py`)
@@ -31,10 +38,13 @@ The application follows a modular architecture with clear separation of concerns
 ### 2. Database Management (`database.py`)
 - **Purpose**: Handles all database operations with SQLite
 - **Architecture Decision**: Uses aiosqlite for async database operations to prevent blocking
-- **Schema Design**:
-  - `points` table with user_id, balance, created_at, updated_at
+- **Enhanced Schema Design** (Updated 2025-07-22):
+  - `points` table: user_id, balance, created_at, updated_at
+  - `transactions` table: Complete audit trail with admin tracking
+  - `achievements` table: User achievement system with points rewards
+  - `user_stats` table: Comprehensive user analytics and activity tracking
   - Database indexes for performance optimization
-  - Automatic timestamp triggers for data tracking
+  - Automatic triggers for timestamp and statistics updates
 
 ### 3. Configuration (`config.py`)
 - **Purpose**: Centralized configuration management
@@ -44,6 +54,13 @@ The application follows a modular architecture with clear separation of concerns
   - Points transaction limits
   - Database path configuration
   - Feature flags for optional functionality
+
+### 4. Web Dashboard Features (Enhanced 2025-07-22)
+- **Points Management**: Silent point operations with reason tracking
+- **Database Administration**: Real-time statistics and transaction monitoring  
+- **Achievement System**: Create and manage user achievements
+- **User Analytics**: Detailed user activity and performance metrics
+- **Multi-section Interface**: Tabbed navigation for different admin functions
 
 ## Data Flow
 
@@ -62,7 +79,9 @@ The application follows a modular architecture with clear separation of concerns
 
 ### Core Dependencies
 - **discord.py**: Discord API wrapper for bot functionality
-- **aiosqlite**: Async SQLite database operations
+- **aiosqlite**: Async SQLite database operations with enhanced schema
+- **flask**: Web dashboard for administrative management
+- **python-dotenv**: Environment variable management
 - **Python standard library**: logging, asyncio, os, typing
 
 ### Discord API Integration

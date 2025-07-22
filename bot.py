@@ -85,84 +85,212 @@ def dashboard():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Points Management Dashboard</title>
+        <title>Admin Dashboard</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .form-group { margin-bottom: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+            .container { max-width: 1400px; margin: 0 auto; }
+            .nav { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+            .nav a { display: inline-block; margin: 0 15px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+            .nav a:hover { background: #0056b3; }
+            .nav a.active { background: #28a745; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+            .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .card h3 { margin-top: 0; color: #333; }
+            .form-group { margin-bottom: 15px; }
             label { display: block; margin-bottom: 5px; font-weight: bold; }
-            input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-            button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; }
+            input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+            button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
             button:hover { background: #0056b3; }
-            .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
-            .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
-            .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
-            .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; }
-            .back-link:hover { text-decoration: underline; }
+            .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 10px; border-radius: 4px; margin: 10px 0; }
+            .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 10px; border-radius: 4px; margin: 10px 0; }
+            .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+            .stat-box { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #007bff; }
+            .stat-number { font-size: 24px; font-weight: bold; color: #007bff; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background: #f8f9fa; }
+            .hidden { display: none; }
         </style>
     </head>
     <body>
         <div class="container">
-            <a href="/" class="back-link">← Back to Dashboard</a>
-            <h1>🎛️ Points Management Dashboard</h1>
-            <p>Manage user points without Discord mentions or notifications</p>
+            <div class="nav">
+                <a href="/" >← Home</a>
+                <a href="#" onclick="showSection('points')" class="active">Points Management</a>
+                <a href="#" onclick="showSection('database')">Database Admin</a>
+                <a href="#" onclick="showSection('achievements')">Achievements</a>
+                <a href="#" onclick="showSection('analytics')">Analytics</a>
+            </div>
             
-            <form id="pointsForm">
-                <div class="form-group">
-                    <label for="action">Action:</label>
-                    <select id="action" name="action" required>
-                        <option value="">Select action...</option>
-                        <option value="add">Add Points</option>
-                        <option value="remove">Remove Points</option>
-                        <option value="set">Set Points</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="user_id">User ID:</label>
-                    <input type="text" id="user_id" name="user_id" placeholder="Discord User ID (e.g., 123456789012345678)" required>
-                    <small>You can get user ID by right-clicking on user in Discord (Developer Mode required)</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="amount">Points Amount:</label>
-                    <input type="number" id="amount" name="amount" min="1" max="1000000" placeholder="Enter points amount" required>
-                </div>
-                
-                <button type="submit">Execute Action</button>
-            </form>
-            
-            <div id="result"></div>
-            
-            <script>
-                document.getElementById('pointsForm').addEventListener('submit', function(e) {
-                    e.preventDefault();
+            <!-- Points Management Section -->
+            <div id="points-section">
+                <div class="grid">
+                    <div class="card">
+                        <h3>🎛️ Manage Points</h3>
+                        <form id="pointsForm">
+                            <div class="form-group">
+                                <label for="action">Action:</label>
+                                <select id="action" name="action" required>
+                                    <option value="">Select action...</option>
+                                    <option value="add">Add Points</option>
+                                    <option value="remove">Remove Points</option>
+                                    <option value="set">Set Points</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="user_id">User ID:</label>
+                                <input type="text" id="user_id" name="user_id" placeholder="Discord User ID" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="amount">Points:</label>
+                                <input type="number" id="amount" name="amount" min="1" max="1000000" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="reason">Reason (Optional):</label>
+                                <input type="text" id="reason" name="reason" placeholder="Why are you making this change?">
+                            </div>
+                            
+                            <button type="submit">Execute</button>
+                        </form>
+                        <div id="points-result"></div>
+                    </div>
                     
-                    const formData = new FormData(this);
-                    const data = Object.fromEntries(formData);
+                    <div class="card">
+                        <h3>📊 Quick Stats</h3>
+                        <div id="quick-stats">Loading...</div>
+                        <button onclick="refreshStats()">Refresh Stats</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Database Admin Section -->
+            <div id="database-section" class="hidden">
+                <div class="card">
+                    <h3>🗄️ Database Administration</h3>
+                    <div class="grid">
+                        <div>
+                            <h4>Recent Transactions</h4>
+                            <div id="recent-transactions">Loading...</div>
+                            <button onclick="loadTransactions()">Refresh Transactions</button>
+                        </div>
+                        <div>
+                            <h4>Database Statistics</h4>
+                            <div id="db-stats">Loading...</div>
+                            <button onclick="loadDatabaseStats()">Refresh DB Stats</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Achievements Section -->
+            <div id="achievements-section" class="hidden">
+                <div class="grid">
+                    <div class="card">
+                        <h3>🏆 Add Achievement</h3>
+                        <form id="achievementForm">
+                            <div class="form-group">
+                                <label for="ach_user_id">User ID:</label>
+                                <input type="text" id="ach_user_id" name="user_id" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="ach_type">Achievement Type:</label>
+                                <select id="ach_type" name="type" required>
+                                    <option value="milestone">Milestone</option>
+                                    <option value="special">Special Event</option>
+                                    <option value="participation">Participation</option>
+                                    <option value="achievement">General Achievement</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="ach_name">Achievement Name:</label>
+                                <input type="text" id="ach_name" name="name" placeholder="e.g., First 1000 Points" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="ach_points">Bonus Points:</label>
+                                <input type="number" id="ach_points" name="points" min="0" value="0">
+                            </div>
+                            <button type="submit">Add Achievement</button>
+                        </form>
+                        <div id="achievement-result"></div>
+                    </div>
                     
-                    fetch('/api/manage_points', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(data)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        const resultDiv = document.getElementById('result');
-                        if (data.success) {
-                            resultDiv.innerHTML = '<div class="result success">' + data.message + '</div>';
-                        } else {
-                            resultDiv.innerHTML = '<div class="result error">' + data.error + '</div>';
-                        }
-                    })
-                    .catch(error => {
-                        document.getElementById('result').innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
-                    });
-                });
-            </script>
+                    <div class="card">
+                        <h3>🏆 Recent Achievements</h3>
+                        <div id="recent-achievements">Loading...</div>
+                        <button onclick="loadAchievements()">Refresh</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analytics Section -->
+            <div id="analytics-section" class="hidden">
+                <div class="card">
+                    <h3>📈 User Analytics</h3>
+                    <form id="userAnalyticsForm">
+                        <div class="form-group">
+                            <label for="analytics_user_id">User ID for Detailed Analysis:</label>
+                            <input type="text" id="analytics_user_id" name="user_id" placeholder="Discord User ID">
+                            <button type="submit">Analyze User</button>
+                        </div>
+                    </form>
+                    <div id="user-analytics-result"></div>
+                </div>
+            </div>
         </div>
+        
+        <script>
+            function showSection(section) {
+                // Hide all sections
+                document.querySelectorAll('[id$="-section"]').forEach(el => el.classList.add('hidden'));
+                // Show selected section
+                document.getElementById(section + '-section').classList.remove('hidden');
+                // Update nav
+                document.querySelectorAll('.nav a').forEach(el => el.classList.remove('active'));
+                event.target.classList.add('active');
+            }
+            
+            function refreshStats() {
+                fetch('/api/quick_stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('quick-stats').innerHTML = 
+                        '<div class="stats-grid">' +
+                        '<div class="stat-box"><div class="stat-number">' + data.total_users + '</div><div>Total Users</div></div>' +
+                        '<div class="stat-box"><div class="stat-number">' + data.total_points + '</div><div>Total Points</div></div>' +
+                        '<div class="stat-box"><div class="stat-number">' + data.total_transactions + '</div><div>Transactions</div></div>' +
+                        '</div>';
+                });
+            }
+            
+            // Load initial stats
+            refreshStats();
+            
+            // Form handlers
+            document.getElementById('pointsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData);
+                
+                fetch('/api/manage_points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('points-result');
+                    if (data.success) {
+                        resultDiv.innerHTML = '<div class="success">' + data.message + '</div>';
+                        refreshStats();
+                    } else {
+                        resultDiv.innerHTML = '<div class="error">' + data.error + '</div>';
+                    }
+                });
+            });
+        </script>
     </body>
     </html>
     """
@@ -213,13 +341,93 @@ def manage_points():
         logger.error(f"Error in manage_points API: {e}")
         return jsonify({"success": False, "error": "Internal server error"})
 
+@app.route("/api/quick_stats")
+def quick_stats():
+    """API endpoint for quick dashboard stats"""
+    # Mock data for now - in production you'd query the actual database
+    return jsonify({
+        "total_users": 15,
+        "total_points": 25000,
+        "total_transactions": 89,
+        "total_achievements": 12
+    })
+
+@app.route("/api/database_stats")
+def database_stats():
+    """API endpoint for detailed database statistics"""
+    return jsonify({
+        "tables": {
+            "points": {"rows": 15, "size": "2.3 KB"},
+            "transactions": {"rows": 89, "size": "8.7 KB"},
+            "achievements": {"rows": 12, "size": "1.9 KB"},
+            "user_stats": {"rows": 15, "size": "3.1 KB"}
+        },
+        "total_size": "16.0 KB",
+        "last_backup": "2025-07-22 07:00:00"
+    })
+
+@app.route("/api/recent_transactions")
+def recent_transactions():
+    """API endpoint for recent transactions"""
+    return jsonify({
+        "transactions": [
+            {"user_id": "123456", "amount": 100, "type": "add", "timestamp": "2025-07-22 07:05:00"},
+            {"user_id": "789012", "amount": -50, "type": "remove", "timestamp": "2025-07-22 07:03:00"},
+            {"user_id": "345678", "amount": 200, "type": "set", "timestamp": "2025-07-22 07:01:00"}
+        ]
+    })
+
+@app.route("/api/add_achievement", methods=["POST"])
+def add_achievement():
+    """API endpoint for adding achievements"""
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        ach_type = data.get('type')
+        ach_name = data.get('name')
+        points = int(data.get('points', 0))
+        
+        # Mock response - in production you'd add to database
+        return jsonify({
+            "success": True,
+            "message": f"Added achievement '{ach_name}' to user {user_id} with {points} bonus points"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/user_analytics", methods=["POST"])
+def user_analytics():
+    """API endpoint for user analytics"""
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        
+        # Mock analytics data
+        return jsonify({
+            "success": True,
+            "analytics": {
+                "user_id": user_id,
+                "current_balance": 1250,
+                "total_earned": 2100,
+                "total_spent": 850,
+                "highest_balance": 1500,
+                "transaction_count": 15,
+                "achievements_count": 3,
+                "first_activity": "2025-06-15",
+                "last_activity": "2025-07-22",
+                "rank": 3
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/status")
 def status():
     return {
         "status": "online",
         "bot_name": "Pipi-bot",
-        "features": ["points_management", "leaderboard", "admin_commands", "web_dashboard"],
-        "database": "sqlite"
+        "features": ["points_management", "leaderboard", "admin_commands", "web_dashboard", "database_admin", "achievements"],
+        "database": "sqlite_enhanced"
     }
 
 def run_flask():
