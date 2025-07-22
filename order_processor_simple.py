@@ -53,11 +53,8 @@ class SimpleOrderProcessor:
                                 order_amount = None
                     
                     if email and '@' in email:
-                        # Calculate points based on order amount if available
-                        calculated_points = points_per_order
-                        if order_amount and order_amount > 0:
-                            # 1 point per dollar, minimum of points_per_order
-                            calculated_points = max(int(order_amount), points_per_order)
+                        # Calculate points: 1 amount = 1 point
+                        calculated_points = int(order_amount) if order_amount and order_amount > 0 else points_per_order
                         
                         # Generate verification code
                         verification_code = self.generate_verification_code()

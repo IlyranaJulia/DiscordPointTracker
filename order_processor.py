@@ -54,11 +54,8 @@ class OrderProcessor:
                                 order_amount = None
                     
                     if email and '@' in email:
-                        # Calculate points based on order amount if available
-                        calculated_points = points_per_order
-                        if order_amount and order_amount > 0:
-                            # Optional: scale points based on order amount (1 point per dollar)
-                            calculated_points = max(int(order_amount), points_per_order)
+                        # Calculate points: 1 amount = 1 point
+                        calculated_points = int(order_amount) if order_amount and order_amount > 0 else points_per_order
                         
                         orders.append({
                             'email': email,

@@ -28,7 +28,7 @@ The application follows a modular architecture with clear separation of concerns
 - **CSV Order Import**: Bulk processing of customer order data files
 - **Mass Order Processing**: Successfully processed 20,000+ customer orders with verification codes
 - **Claim System**: !claim command enables customers to redeem points using verification codes
-- **Points Calculation**: Automatic calculation based on order amount (1 point per dollar, 50 minimum)
+- **Points Calculation**: Automatic calculation based on order amount (1 amount = 1 point exactly)
 
 ## Key Components
 
