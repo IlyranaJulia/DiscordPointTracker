@@ -1274,170 +1274,12 @@ async def check_points(ctx, member: discord.Member = None):
         logger.error(f"Error in check_points command: {e}")
         await ctx.send("❌ An error occurred while checking points balance.")
 
-@bot.command(name='addpoints', aliases=['add'])
-@commands.has_permissions(administrator=True)
-async def add_points(ctx, member: discord.Member, amount: int):
-    """Add points to a member (Admin only)"""
-    try:
-        # Validate amount
-        if amount <= 0:
-            await ctx.send("❌ Point amount must be a positive number.")
-            return
-            
-        if amount > 1000000:  # Reasonable upper limit
-            await ctx.send("❌ Point amount is too large. Maximum allowed is 1,000,000 points per transaction.")
-            return
-            
-        # Add points
-        await bot.db.update_points(member.id, amount)
-        new_balance = await bot.db.get_points(member.id)
-        
-        # Create success embed
-        embed = discord.Embed(
-            title="✅ Points Added Successfully",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Member", value=member.mention, inline=True)
-        embed.add_field(name="Points Added", value=f"{amount:,}", inline=True)
-        embed.add_field(name="New Balance", value=f"{new_balance:,}", inline=True)
-        embed.set_thumbnail(url=member.display_avatar.url)
-        
-        await ctx.send(embed=embed)
-        logger.info(f"Admin {ctx.author} added {amount} points to {member} (ID: {member.id})")
-        
-    except Exception as e:
-        logger.error(f"Error in add_points command: {e}")
-        await ctx.send("❌ An error occurred while adding points.")
 
-@bot.command(name='silentadd', aliases=['sadd'])
-@commands.has_permissions(administrator=True)
-async def silent_add_points(ctx, member: discord.Member, amount: int):
-    """Silently add points to a member without notifications (Admin only)"""
-    try:
-        # Validate amount
-        if amount <= 0:
-            await ctx.send("❌ Point amount must be a positive number.")
-            return
-            
-        if amount > 1000000:
-            await ctx.send("❌ Point amount is too large. Maximum allowed is 1,000,000 points per transaction.")
-            return
-            
-        # Add points silently
-        await bot.db.update_points(member.id, amount)
-        new_balance = await bot.db.get_points(member.id)
-        
-        # Send confirmation only to admin (no mention)
-        await ctx.send(f"✅ Silently added {amount:,} points to {member.display_name}. New balance: {new_balance:,}")
-        logger.info(f"Admin {ctx.author} silently added {amount} points to {member.display_name} (ID: {member.id})")
-        
-    except Exception as e:
-        logger.error(f"Error in silent_add_points command: {e}")
-        await ctx.send("❌ An error occurred while adding points.")
 
-@bot.command(name='silentremove', aliases=['sremove'])
-@commands.has_permissions(administrator=True)
-async def silent_remove_points(ctx, member: discord.Member, amount: int):
-    """Silently remove points from a member without notifications (Admin only)"""
-    try:
-        # Validate amount
-        if amount <= 0:
-            await ctx.send("❌ Point amount must be a positive number.")
-            return
-            
-        current_balance = await bot.db.get_points(member.id)
-        
-        if current_balance < amount:
-            await ctx.send(f"⚠️ {member.display_name} only has {current_balance:,} points. Cannot remove {amount:,} points.")
-            return
-            
-        # Remove points silently
-        await bot.db.update_points(member.id, -amount)
-        new_balance = await bot.db.get_points(member.id)
-        
-        # Send confirmation only to admin (no mention)
-        await ctx.send(f"✅ Silently removed {amount:,} points from {member.display_name}. New balance: {new_balance:,}")
-        logger.info(f"Admin {ctx.author} silently removed {amount} points from {member.display_name} (ID: {member.id})")
-        
-    except Exception as e:
-        logger.error(f"Error in silent_remove_points command: {e}")
-        await ctx.send("❌ An error occurred while removing points.")
 
-@bot.command(name='removepoints', aliases=['remove', 'subtract'])
-@commands.has_permissions(administrator=True)
-async def remove_points(ctx, member: discord.Member, amount: int):
-    """Remove points from a member (Admin only)"""
-    try:
-        # Validate amount
-        if amount <= 0:
-            await ctx.send("❌ Point amount must be a positive number.")
-            return
-            
-        current_balance = await bot.db.get_points(member.id)
-        
-        # Check if user has enough points
-        if current_balance < amount:
-            embed = discord.Embed(
-                title="⚠️ Insufficient Points",
-                description=f"{member.mention} only has **{current_balance:,} points**.\nCannot remove **{amount:,} points**.",
-                color=discord.Color.orange()
-            )
-            await ctx.send(embed=embed)
-            return
-            
-        # Remove points
-        await bot.db.update_points(member.id, -amount)
-        new_balance = await bot.db.get_points(member.id)
-        
-        # Create success embed
-        embed = discord.Embed(
-            title="❌ Points Removed Successfully",
-            color=discord.Color.red()
-        )
-        embed.add_field(name="Member", value=member.mention, inline=True)
-        embed.add_field(name="Points Removed", value=f"{amount:,}", inline=True)
-        embed.add_field(name="New Balance", value=f"{new_balance:,}", inline=True)
-        embed.set_thumbnail(url=member.display_avatar.url)
-        
-        await ctx.send(embed=embed)
-        logger.info(f"Admin {ctx.author} removed {amount} points from {member} (ID: {member.id})")
-        
-    except Exception as e:
-        logger.error(f"Error in remove_points command: {e}")
-        await ctx.send("❌ An error occurred while removing points.")
 
-@bot.command(name='setpoints', aliases=['set'])
-@commands.has_permissions(administrator=True)
-async def set_points(ctx, member: discord.Member, amount: int):
-    """Set a member's points to a specific amount (Admin only)"""
-    try:
-        # Validate amount
-        if amount < 0:
-            await ctx.send("❌ Point amount cannot be negative.")
-            return
-            
-        if amount > 10000000:  # Reasonable upper limit
-            await ctx.send("❌ Point amount is too large. Maximum allowed is 10,000,000 points.")
-            return
-            
-        # Set points
-        await bot.db.set_points(member.id, amount)
-        
-        # Create success embed
-        embed = discord.Embed(
-            title="🔧 Points Set Successfully",
-            color=discord.Color.purple()
-        )
-        embed.add_field(name="Member", value=member.mention, inline=True)
-        embed.add_field(name="Points Set To", value=f"{amount:,}", inline=True)
-        embed.set_thumbnail(url=member.display_avatar.url)
-        
-        await ctx.send(embed=embed)
-        logger.info(f"Admin {ctx.author} set {member}'s points to {amount} (ID: {member.id})")
-        
-    except Exception as e:
-        logger.error(f"Error in set_points command: {e}")
-        await ctx.send("❌ An error occurred while setting points.")
+
+
 
 @bot.command(name='pointsboard', aliases=['top', 'lb'])
 async def leaderboard(ctx, limit: int = 10):
@@ -1512,20 +1354,16 @@ async def help_command(ctx):
               f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard\n"
               f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (auto-deleted for privacy)\n"
               f"`{Config.COMMAND_PREFIX}updateemail <email>` - Update your submitted email\n"
-              f"`{Config.COMMAND_PREFIX}myemail` - Check your email submission status\n"
-              f"`{Config.COMMAND_PREFIX}claim <code>` - Claim points with verification code",
+              f"`{Config.COMMAND_PREFIX}myemail` - Check your email submission status",
         inline=False
     )
     
     # Admin commands
     embed.add_field(
         name="👑 Admin Commands",
-        value=f"`{Config.COMMAND_PREFIX}addpoints @user <amount>` - Add points to a user\n"
-              f"`{Config.COMMAND_PREFIX}silentadd @user <amount>` - Add points silently\n"
-              f"`{Config.COMMAND_PREFIX}removepoints @user <amount>` - Remove points from a user\n"
-              f"`{Config.COMMAND_PREFIX}silentremove @user <amount>` - Remove points silently\n"
-              f"`{Config.COMMAND_PREFIX}setpoints @user <amount>` - Set user's points to specific amount\n"
-              f"`{Config.COMMAND_PREFIX}submitemailfor @user <email>` - Submit email for user (if they can't DM)",
+        value=f"`{Config.COMMAND_PREFIX}submitemailfor @user <email>` - Submit email for user (if they can't DM)\n"
+              f"**Web Dashboard**: All point management (add/remove/set) now done through admin web interface\n"
+              f"**Access Dashboard**: Visit the web interface for complete email and points management",
         inline=False
     )
     
@@ -1876,51 +1714,7 @@ async def submit_order_email(ctx, *, email_address: str = None):
         logger.error(f"Error in submit_order_email command: {e}")
         await ctx.send("❌ An error occurred while submitting your email. Please try again later.")
 
-@bot.command(name='claim')
-async def claim_points(ctx, verification_code: str = None):
-    """Claim points using verification code from order"""
-    if not verification_code:
-        await ctx.send("❌ Please provide a verification code. Usage: `!claim <verification_code>`")
-        return
-    
-    try:
-        # Try both processors - with and without email
-        result = None
-        
-        # First try the simple processor (no email required)
-        try:
-            from order_processor_simple import SimpleOrderProcessor
-            processor = SimpleOrderProcessor()
-            result = await processor.process_claim(verification_code, ctx.author.id)
-        except:
-            pass
-        
-        # If that fails, try the email processor
-        if not result or not result.get("success"):
-            try:
-                from order_processor import OrderProcessor
-                processor = OrderProcessor()
-                result = await processor.process_claim(verification_code, ctx.author.id)
-            except:
-                pass
-        
-        if result and result["success"]:
-            embed = discord.Embed(
-                title="🎉 Points Claimed Successfully!",
-                description=result["message"],
-                color=discord.Color.green()
-            )
-            embed.add_field(name="Points Added", value=f"{result['points_added']:,}", inline=True)
-            embed.add_field(name="New Balance", value=f"{result['new_balance']:,}", inline=True)
-            embed.add_field(name="Order ID", value=result["order_id"], inline=True)
-            await ctx.send(embed=embed)
-        else:
-            error_msg = result.get("error", "Invalid verification code") if result else "Invalid verification code"
-            await ctx.send(f"❌ {error_msg}")
-            
-    except Exception as e:
-        logger.error(f"Error in claim command: {e}")
-        await ctx.send("❌ An error occurred while processing your claim. Please try again later.")
+
 
 @bot.command(name='updateemail', aliases=['changeemail', 'newemail'])
 async def update_email(ctx, *, new_email_address: str = None):

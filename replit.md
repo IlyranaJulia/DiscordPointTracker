@@ -27,10 +27,11 @@ The application follows a modular architecture with clear separation of concerns
 - **SendGrid Integration**: Professional email notifications for order rewards
 - **CSV Order Import**: Bulk processing of customer order data files
 - **Mass Order Processing**: System ready to process customer orders with verification codes
-- **Claim System**: !claim command enables customers to redeem points using verification codes
 - **Points Calculation**: Automatic calculation based on order amount (1 amount = 1 point exactly)
 - **Database Reset**: All points and verification codes cleared for official program launch
 - **Self-Service Email Submission**: Users can submit emails directly with automatic privacy protection
+- **Email Management Dashboard**: Complete admin interface for viewing and processing user email submissions
+- **Removed Point Management Commands**: Removed !claim, !addpoints, !silentadd, !removepoints, !silentremove, !setpoints - all point management now exclusively through web dashboard
 
 ## Key Components
 
