@@ -1,6 +1,6 @@
 # Discord Points Bot
 
-A comprehensive Discord bot for managing member points with add, remove, balance check, and leaderboard functionality.
+A comprehensive Discord bot that transforms community interactions into an engaging points-based gamification system. Features user-friendly commands, privacy-focused design, and a powerful web dashboard for administration.
 
 ## Features
 
@@ -18,23 +18,17 @@ A comprehensive Discord bot for managing member points with add, remove, balance
 ## Commands
 
 ### User Commands
-- `!points [@user]` - Check your points or another user's points
-- `!leaderboard [limit]` - Show points leaderboard (max 25 users)
-- `!help` - Show help information
+- `!mypoints` - Check your points balance (sent via DM for privacy)
+- `!pointsboard [limit]` - Show the points leaderboard
+- `!submitemail <email>` - Submit your order email address
+- `!updateemail <email>` - Update your submitted email address  
+- `!myemail` - Check your email submission status
+- `!pipihelp` - Show all available commands
 
-### Admin Commands (Requires Administrator permission)
-- `!addpoints @user <amount>` - Add points to a user
-- `!removepoints @user <amount>` - Remove points from a user
-- `!setpoints @user <amount>` - Set user's points to specific amount
-- `!status` - Show bot status and statistics
-
-### Command Aliases
-- `!points` = `!balance`, `!p`
-- `!addpoints` = `!add`
-- `!removepoints` = `!remove`, `!subtract`
-- `!setpoints` = `!set`
-- `!leaderboard` = `!top`, `!lb`
-- `!help` = `!h`
+### Admin Interface
+- **Web Dashboard**: All point management (add/remove/set points)
+- **Email Management**: Process user email submissions
+- **Database Tools**: Export data, view statistics, manage users
 
 ## Setup Instructions
 
