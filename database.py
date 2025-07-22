@@ -493,6 +493,63 @@ class PointsDatabase:
             logger.error(f"Error getting database stats: {e}")
             return {}
 
+    async def get_user_analytics(self, user_id: int) -> Optional[dict]:
+        """Get comprehensive analytics for a specific user"""
+        try:
+            if not self.conn:
+                await self.initialize()
+            
+            analytics = {}
+            
+            # Current balance
+            current_balance = await self.get_points(user_id)
+            analytics['current_balance'] = current_balance if current_balance is not None else 0
+            
+            # Transaction-based analytics
+            async with self.conn.execute('''
+                SELECT 
+                    COUNT(*) as transaction_count,
+                    SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as total_earned,
+                    SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as total_spent,
+                    MAX(new_balance) as highest_balance,
+                    MIN(created_at) as first_activity,
+                    MAX(created_at) as last_activity
+                FROM transactions 
+                WHERE user_id = ?
+            ''', (user_id,)) as cursor:
+                result = await cursor.fetchone()
+                if result:
+                    analytics['transaction_count'] = result[0] or 0
+                    analytics['total_earned'] = result[1] or 0
+                    analytics['total_spent'] = result[2] or 0
+                    analytics['highest_balance'] = result[3] or analytics['current_balance']
+                    analytics['first_activity'] = result[4] or 'Never'
+                    analytics['last_activity'] = result[5] or 'Never'
+                else:
+                    analytics['transaction_count'] = 0
+                    analytics['total_earned'] = 0
+                    analytics['total_spent'] = 0
+                    analytics['highest_balance'] = analytics['current_balance']
+                    analytics['first_activity'] = 'Never'
+                    analytics['last_activity'] = 'Never'
+            
+            # Achievements count
+            async with self.conn.execute('''
+                SELECT COUNT(*) FROM achievements WHERE user_id = ?
+            ''', (user_id,)) as cursor:
+                result = await cursor.fetchone()
+                analytics['achievements_count'] = result[0] if result else 0
+            
+            # User rank
+            user_rank = await self.get_user_rank(user_id)
+            analytics['rank'] = user_rank if user_rank is not None else 'N/A'
+            
+            return analytics
+            
+        except Exception as e:
+            logger.error(f"Error getting user analytics for {user_id}: {e}")
+            return None
+
     async def close(self):
         """Close the database connection"""
         if self.conn:

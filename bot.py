@@ -721,25 +721,61 @@ def user_analytics():
     """API endpoint for user analytics"""
     try:
         data = request.json
-        user_id = data.get('user_id')
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
         
-        # Mock analytics data
-        return jsonify({
-            "success": True,
-            "analytics": {
-                "user_id": user_id,
-                "current_balance": 1250,
-                "total_earned": 2100,
-                "total_spent": 850,
-                "highest_balance": 1500,
-                "transaction_count": 15,
-                "achievements_count": 3,
-                "first_activity": "2025-06-15",
-                "last_activity": "2025-07-22",
-                "rank": 3
-            }
-        })
+        user_id_str = data.get('user_id')
+        if not user_id_str:
+            return jsonify({"success": False, "error": "User ID is required"})
+        
+        try:
+            user_id = int(user_id_str)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid user ID format"})
+        
+        from database import PointsDatabase
+        db = PointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get user analytics from database
+            analytics_data = loop.run_until_complete(db.get_user_analytics(user_id))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            if analytics_data:
+                return jsonify({
+                    "success": True,
+                    "analytics": {
+                        "user_id": str(user_id),
+                        "current_balance": analytics_data.get('current_balance', 0),
+                        "total_earned": analytics_data.get('total_earned', 0),
+                        "total_spent": analytics_data.get('total_spent', 0),
+                        "highest_balance": analytics_data.get('highest_balance', 0),
+                        "transaction_count": analytics_data.get('transaction_count', 0),
+                        "rank": analytics_data.get('rank', 'N/A'),
+                        "achievements_count": analytics_data.get('achievements_count', 0),
+                        "last_activity": analytics_data.get('last_activity', 'Never')
+                    }
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": f"No data found for user {user_id}"
+                })
+            
+        finally:
+            loop.close()
+            
     except Exception as e:
+        logger.error(f"Error getting user analytics: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/status")
