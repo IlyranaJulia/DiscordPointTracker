@@ -1,79 +1,79 @@
 # Discord Points Bot
 
-一个强大的Discord积分管理机器人，支持现代斜杠命令和网页管理面板。
+A powerful Discord bot for managing member points with modern slash commands and web admin dashboard.
 
-## 功能特点
+## Features
 
-- 🔗 **现代斜杠命令系统** - 完全支持Discord最新的斜杠命令接口
-- 📊 **积分管理系统** - 完整的用户积分跟踪和管理
-- 🏆 **排行榜功能** - 实时显示用户积分排名
-- 📧 **邮件提交系统** - 简化的邮件提交流程，无需用户验证
-- 🎛️ **网页管理面板** - 管理员可通过网页界面管理积分
-- 💾 **SQLite数据库** - 轻量级持久化数据存储
+- **Modern Slash Commands** - Full support for Discord's latest slash command interface
+- **Points Management System** - Complete user points tracking and management
+- **Leaderboard System** - Real-time display of user point rankings
+- **Email Submission System** - Simplified email submission process without user verification
+- **Web Admin Dashboard** - Administrators can manage points through web interface
+- **SQLite Database** - Lightweight persistent data storage
 
-## 斜杠命令
+## Slash Commands
 
-- `/pipihelp` - 显示所有可用命令
-- `/mypoints` - 查看自己的积分
-- `/pointsboard` - 查看积分排行榜
-- `/submitemail` - 提交订单邮箱地址
-- `/updateemail` - 更新已提交的邮箱
-- `/myemail` - 查看邮箱提交状态
-- `/status` - 查看机器人状态（管理员）
+- `/pipihelp` - Show all available commands
+- `/mypoints` - Check your points balance
+- `/pointsboard` - View points leaderboard
+- `/submitemail` - Submit your order email address
+- `/updateemail` - Update previously submitted email
+- `/myemail` - Check email submission status
+- `/status` - View bot status (administrators only)
 
-## 快速开始
+## Quick Start
 
-1. 克隆仓库
+1. Clone the repository
 ```bash
 git clone <repository-url>
 cd discord-points-bot
 ```
 
-2. 安装依赖
+2. Install dependencies
 ```bash
 pip install discord.py aiosqlite flask python-dotenv
 ```
 
-3. 配置环境变量
+3. Configure environment variables
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，添加你的 BOT_TOKEN
+# Edit .env file and add your BOT_TOKEN
 ```
 
-4. 运行机器人
+4. Run the bot
 ```bash
 python bot.py
 ```
 
-## 部署
+## Deployment
 
-支持多种部署方式：
+Multiple deployment options supported:
 
-- **Fly.io部署** - 参考 `FLY_DEPLOYMENT_GUIDE.md`
-- **Docker部署** - 使用提供的 `Dockerfile`
-- **本地运行** - 直接运行 `python bot.py`
+- **Fly.io Deployment** - See `FLY_DEPLOYMENT_GUIDE.md`
+- **Docker Deployment** - Use provided `Dockerfile`
+- **Local Running** - Direct execution with `python bot.py`
 
-## 技术架构
+## Technical Architecture
 
 - **Python 3.11+**
-- **discord.py 2.5+** - Discord API库
-- **aiosqlite** - 异步SQLite数据库
-- **Flask** - 网页管理面板
-- **python-dotenv** - 环境变量管理
+- **discord.py 2.5+** - Discord API library
+- **aiosqlite** - Async SQLite database
+- **Flask** - Web admin dashboard
+- **python-dotenv** - Environment variable management
 
-## 文件结构
+## File Structure
 
 ```
-├── bot.py                  # 主机器人文件
-├── database.py            # 数据库管理
-├── config.py              # 配置管理
-├── order_processor.py     # 订单处理逻辑
-├── pyproject.toml         # 项目依赖
-├── fly.toml              # Fly.io配置
-├── Dockerfile            # Docker配置
-└── README.md             # 项目说明
+├── bot.py                  # Main bot application
+├── database.py            # Database management
+├── config.py              # Configuration management
+├── order_processor.py     # Order processing logic
+├── pyproject.toml         # Project dependencies
+├── fly.toml               # Fly.io configuration
+├── Dockerfile             # Docker configuration
+└── README.md              # Project documentation
 ```
 
-## 许可证
+## License
 
 MIT License# DiscordPointTracker
