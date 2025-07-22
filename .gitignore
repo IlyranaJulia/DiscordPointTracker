@@ -1,13 +1,4 @@
-# Environment files
-.env
-.env.local
-.env.production
-
-# Database files
-*.db
-points.db
-
-# Python cache and build files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -28,38 +19,38 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual environments
-venv/
-ENV/
-env/
-.venv/
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# IDE files
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# Logs
-*.log
-bot.log
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Replit specific
-.replit
-uv.lock
+# Deployment
+fly.toml.bak
+.fly/
 
-# Sensitive data
-customer_orders.csv
-example_orders.csv
-full_order_database.csv
-attached_assets/
-
-# Temporary files
-temp/
-tmp/
+# Cache
+.cache/
+.uv/
