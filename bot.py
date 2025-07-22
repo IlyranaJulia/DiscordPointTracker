@@ -1361,8 +1361,8 @@ async def help_command(ctx):
     # Admin commands
     embed.add_field(
         name="👑 Admin Commands",
-        value=f"`{Config.COMMAND_PREFIX}submitemailfor @user <email>` - Submit email for user (if they can't DM)\n"
-              f"**Web Dashboard**: All point management (add/remove/set) now done through admin web interface\n"
+        value=f"**Web Dashboard**: All point management (add/remove/set) now done through admin web interface\n"
+              f"**Email Management**: View and process all user email submissions through dashboard\n"
               f"**Access Dashboard**: Visit the web interface for complete email and points management",
         inline=False
     )

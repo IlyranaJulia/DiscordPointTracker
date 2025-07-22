@@ -32,6 +32,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Self-Service Email Submission**: Users can submit emails directly with automatic privacy protection
 - **Email Management Dashboard**: Complete admin interface for viewing and processing user email submissions
 - **Removed Point Management Commands**: Removed !claim, !addpoints, !silentadd, !removepoints, !silentremove, !setpoints - all point management now exclusively through web dashboard
+- **Removed Admin Email Command**: Removed !submitemailfor reference - all email management now through web dashboard
 
 ## Key Components
 
