@@ -1870,7 +1870,15 @@ async def update_email(ctx, *, new_email_address: str = None):
 async def check_my_email(ctx):
     """Check your current email submission status"""
     try:
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) checking email status")
+        
         async with aiosqlite.connect(bot.db.db_path) as db:
+            # First check if table exists and has any data
+            cursor = await db.execute("SELECT COUNT(*) FROM email_submissions")
+            total_count = await cursor.fetchone()
+            logger.info(f"Total email submissions in database: {total_count[0]}")
+            
+            # Check specifically for this user
             cursor = await db.execute('''
                 SELECT email_address, submitted_at, status, processed_at
                 FROM email_submissions 
@@ -1880,6 +1888,7 @@ async def check_my_email(ctx):
             ''', (ctx.author.id,))
             
             submission = await cursor.fetchone()
+            logger.info(f"Found submission for user {ctx.author.id}: {submission}")
         
         if not submission:
             embed = discord.Embed(
