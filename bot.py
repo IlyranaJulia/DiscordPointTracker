@@ -1104,7 +1104,9 @@ async def help_command(ctx):
     embed.add_field(
         name="👤 User Commands",
         value=f"`{Config.COMMAND_PREFIX}points [@user]` - Check your points or another user's points\n"
-              f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard",
+              f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard\n"
+              f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (DM only)\n"
+              f"`{Config.COMMAND_PREFIX}claim <code>` - Claim points with verification code",
         inline=False
     )
     
@@ -1190,6 +1192,161 @@ async def list_users(ctx):
     except Exception as e:
         logger.error(f"Error in list_users command: {e}")
         await ctx.send("❌ An error occurred while listing users.")
+
+@bot.command(name='submitemail', aliases=['email', 'orderemail'])
+async def submit_order_email(ctx, *, email_address: str = None):
+    """Submit your order email address privately to claim points"""
+    try:
+        # Check if command is used in DM
+        if ctx.guild is not None:
+            await ctx.send("❌ Please use this command in a private message (DM) with me for privacy.")
+            return
+        
+        if not email_address:
+            embed = discord.Embed(
+                title="📧 Submit Your Order Email",
+                description="To claim your Discord points, please submit the email address you used for your order.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="Usage", 
+                value="`!submitemail your-email@example.com`", 
+                inline=False
+            )
+            embed.add_field(
+                name="Privacy", 
+                value="Your email is kept private and only visible to server admins.", 
+                inline=False
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # Basic email validation
+        if '@' not in email_address or '.' not in email_address:
+            await ctx.send("❌ Please provide a valid email address.")
+            return
+        
+        email_address = email_address.strip().lower()
+        
+        # Store the email submission in database
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Create table if not exists
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS email_submissions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discord_user_id INTEGER NOT NULL,
+                    discord_username TEXT NOT NULL,
+                    email_address TEXT NOT NULL,
+                    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'pending',
+                    processed_at TIMESTAMP,
+                    admin_notes TEXT
+                )
+            ''')
+            
+            # Check if user already submitted an email
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (ctx.author.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if existing:
+                existing_email, submitted_at = existing
+                embed = discord.Embed(
+                    title="📧 Email Already Submitted",
+                    description=f"You've already submitted: **{existing_email}**",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Submitted", value=submitted_at, inline=True)
+                embed.add_field(name="Status", value="Pending review", inline=True)
+                embed.add_field(
+                    name="Need to change?", 
+                    value="Contact a server admin to update your email address.", 
+                    inline=False
+                )
+                await ctx.send(embed=embed)
+                return
+            
+            # Insert new email submission
+            await db.execute('''
+                INSERT INTO email_submissions 
+                (discord_user_id, discord_username, email_address, status)
+                VALUES (?, ?, ?, 'pending')
+            ''', (ctx.author.id, str(ctx.author), email_address))
+            
+            await db.commit()
+        
+        # Send confirmation to user
+        embed = discord.Embed(
+            title="✅ Email Submitted Successfully",
+            description=f"Your order email **{email_address}** has been submitted for point verification.",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="What's Next?", 
+            value="Server admins will verify your order and you'll receive your points automatically.", 
+            inline=False
+        )
+        embed.add_field(
+            name="Privacy", 
+            value="Your email is stored securely and only visible to server admins.", 
+            inline=False
+        )
+        await ctx.send(embed=embed)
+        
+        logger.info(f"User {ctx.author} (ID: {ctx.author.id}) submitted email: {email_address}")
+        
+    except Exception as e:
+        logger.error(f"Error in submit_order_email command: {e}")
+        await ctx.send("❌ An error occurred while submitting your email. Please try again later.")
+
+@bot.command(name='claim')
+async def claim_points(ctx, verification_code: str = None):
+    """Claim points using verification code from order"""
+    if not verification_code:
+        await ctx.send("❌ Please provide a verification code. Usage: `!claim <verification_code>`")
+        return
+    
+    try:
+        # Try both processors - with and without email
+        result = None
+        
+        # First try the simple processor (no email required)
+        try:
+            from order_processor_simple import SimpleOrderProcessor
+            processor = SimpleOrderProcessor()
+            result = await processor.process_claim(verification_code, ctx.author.id)
+        except:
+            pass
+        
+        # If that fails, try the email processor
+        if not result or not result.get("success"):
+            try:
+                from order_processor import OrderProcessor
+                processor = OrderProcessor()
+                result = await processor.process_claim(verification_code, ctx.author.id)
+            except:
+                pass
+        
+        if result and result["success"]:
+            embed = discord.Embed(
+                title="🎉 Points Claimed Successfully!",
+                description=result["message"],
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Points Added", value=f"{result['points_added']:,}", inline=True)
+            embed.add_field(name="New Balance", value=f"{result['new_balance']:,}", inline=True)
+            embed.add_field(name="Order ID", value=result["order_id"], inline=True)
+            await ctx.send(embed=embed)
+        else:
+            error_msg = result.get("error", "Invalid verification code") if result else "Invalid verification code"
+            await ctx.send(f"❌ {error_msg}")
+            
+    except Exception as e:
+        logger.error(f"Error in claim command: {e}")
+        await ctx.send("❌ An error occurred while processing your claim. Please try again later.")
 
 async def main():
     """Main function to run the bot"""
