@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import logging
 import asyncio
+import aiosqlite
 import sys
 import threading
 from flask import Flask, request, jsonify
