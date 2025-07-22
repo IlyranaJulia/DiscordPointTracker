@@ -1117,7 +1117,8 @@ async def help_command(ctx):
               f"`{Config.COMMAND_PREFIX}silentadd @user <amount>` - Add points silently\n"
               f"`{Config.COMMAND_PREFIX}removepoints @user <amount>` - Remove points from a user\n"
               f"`{Config.COMMAND_PREFIX}silentremove @user <amount>` - Remove points silently\n"
-              f"`{Config.COMMAND_PREFIX}setpoints @user <amount>` - Set user's points to specific amount",
+              f"`{Config.COMMAND_PREFIX}setpoints @user <amount>` - Set user's points to specific amount\n"
+              f"`{Config.COMMAND_PREFIX}submitemailfor @user <email>` - Submit email for user (if they can't DM)",
         inline=False
     )
     
@@ -1199,7 +1200,22 @@ async def submit_order_email(ctx, *, email_address: str = None):
     try:
         # Check if command is used in DM
         if ctx.guild is not None:
-            await ctx.send("❌ Please use this command in a private message (DM) with me for privacy.")
+            embed = discord.Embed(
+                title="🔒 Privacy Required",
+                description="For your privacy, this command only works in direct messages.",
+                color=discord.Color.orange()
+            )
+            embed.add_field(
+                name="How to DM the bot:",
+                value="1. Click on my profile picture\n2. Select 'Send Message'\n3. Use `!submitemail your-email@example.com`",
+                inline=False
+            )
+            embed.add_field(
+                name="Can't send DMs?",
+                value="Contact an admin - they can submit your email for you using the dashboard.",
+                inline=False
+            )
+            await ctx.send(embed=embed)
             return
         
         if not email_address:
