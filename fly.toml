@@ -23,7 +23,7 @@ primary_region = "sjc"
     path = "/"
 
 [processes]
-  app = "python bot.py"
+  app = "python -u bot.py"
 
 [[vm]]
   cpu_kind = "shared"
