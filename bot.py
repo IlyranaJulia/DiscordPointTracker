@@ -1215,11 +1215,12 @@ class PointsBot(commands.Bot):
         
     async def on_ready(self):
         """Called when the bot has successfully connected to Discord"""
-        logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
-        
-        # Set bot status
-        activity = discord.Game(name=f"{Config.COMMAND_PREFIX}pipihelp for commands")
-        await self.change_presence(activity=activity)
+        if self.user:
+            logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
+            
+            # Set bot status
+            activity = discord.Game(name=f"{Config.COMMAND_PREFIX}pipihelp for commands")
+            await self.change_presence(activity=activity)
         
     async def on_command_error(self, ctx, error):
         """Global error handler for commands"""
