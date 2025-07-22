@@ -322,15 +322,56 @@ def manage_points():
         if amount <= 0 or amount > 1000000:
             return jsonify({"success": False, "error": "Amount must be between 1 and 1,000,000"})
         
-        # Note: This is a simplified version for demo purposes
-        # In a production environment, you would need proper async integration
-        # For now, we'll return a success message indicating the action would be performed
-        if action == 'add':
-            message = f"Dashboard request: Add {amount:,} points to user {user_id}"
-        elif action == 'remove':
-            message = f"Dashboard request: Remove {amount:,} points from user {user_id}"
-        else:  # set
-            message = f"Dashboard request: Set user {user_id} points to {amount:,}"
+        # Simple approach: create a new database instance for Flask operations
+        try:
+            from database import PointsDatabase
+            db = PointsDatabase()
+            
+            # Run the async database operation
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Initialize database connection
+                loop.run_until_complete(db.initialize())
+                
+                reason = data.get('reason', 'Dashboard operation')
+                admin_id = 0  # Dashboard admin ID
+                
+                if action == 'add':
+                    success = loop.run_until_complete(db.update_points(user_id, amount, admin_id, reason))
+                    if success:
+                        new_balance = loop.run_until_complete(db.get_points(user_id))
+                        message = f"Successfully added {amount:,} points. New balance: {new_balance:,}"
+                    else:
+                        return jsonify({"success": False, "error": "Failed to add points to database"})
+                elif action == 'remove':
+                    current_balance = loop.run_until_complete(db.get_points(user_id))
+                    if current_balance < amount:
+                        return jsonify({"success": False, "error": f"User only has {current_balance:,} points"})
+                    success = loop.run_until_complete(db.update_points(user_id, -amount, admin_id, reason))
+                    if success:
+                        new_balance = loop.run_until_complete(db.get_points(user_id))
+                        message = f"Successfully removed {amount:,} points. New balance: {new_balance:,}"
+                    else:
+                        return jsonify({"success": False, "error": "Failed to remove points from database"})
+                else:  # set
+                    success = loop.run_until_complete(db.set_points(user_id, amount, admin_id, reason))
+                    if success:
+                        message = f"Successfully set points to {amount:,}"
+                    else:
+                        return jsonify({"success": False, "error": "Failed to set points in database"})
+                        
+                # Close database connection
+                loop.run_until_complete(db.close())
+                        
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            logger.error(f"Database operation error: {e}")
+            return jsonify({"success": False, "error": f"Database error: {str(e)}"})
         
         # Log the dashboard action
         logger.info(f"Dashboard API request: {action} {amount} points for user {user_id}")
@@ -344,13 +385,42 @@ def manage_points():
 @app.route("/api/quick_stats")
 def quick_stats():
     """API endpoint for quick dashboard stats"""
-    # Mock data for now - in production you'd query the actual database
-    return jsonify({
-        "total_users": 15,
-        "total_points": 25000,
-        "total_transactions": 89,
-        "total_achievements": 12
-    })
+    try:
+        from database import PointsDatabase
+        db = PointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get real database stats
+            stats = loop.run_until_complete(db.get_database_stats())
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({
+                "total_users": stats.get('total_users', 0),
+                "total_points": stats.get('total_points', 0),
+                "total_transactions": stats.get('total_transactions', 0),
+                "total_achievements": stats.get('total_achievements', 0)
+            })
+            
+        finally:
+            loop.close()
+                
+    except Exception as e:
+        logger.error(f"Error getting quick stats: {e}")
+        return jsonify({
+            "total_users": 0,
+            "total_points": 0,
+            "total_transactions": 0,
+            "total_achievements": 0
+        })
 
 @app.route("/api/database_stats")
 def database_stats():
