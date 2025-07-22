@@ -1874,7 +1874,7 @@ async def check_my_email(ctx):
             cursor = await db.execute('''
                 SELECT email_address, submitted_at, status, processed_at
                 FROM email_submissions 
-                WHERE discord_user_id = ? AND status = 'pending'
+                WHERE discord_user_id = ?
                 ORDER BY submitted_at DESC
                 LIMIT 1
             ''', (ctx.author.id,))
@@ -1899,16 +1899,35 @@ async def check_my_email(ctx):
                 description=f"**Email:** {email}",
                 color=discord.Color.blue()
             )
-            embed.add_field(name="Status", value=status.title(), inline=True)
+            # Set color based on status
+            if status == 'processed':
+                embed.color = discord.Color.green()
+                status_emoji = "✅"
+            elif status == 'pending':
+                embed.color = discord.Color.blue()
+                status_emoji = "⏳"
+            else:
+                embed.color = discord.Color.red()
+                status_emoji = "❌"
+            
+            embed.add_field(name="Status", value=f"{status_emoji} {status.title()}", inline=True)
             embed.add_field(name="Submitted", value=submitted_at, inline=True)
             if processed_at:
                 embed.add_field(name="Processed", value=processed_at, inline=True)
             
-            embed.add_field(
-                name="Need to change?", 
-                value="`!updateemail new-email@example.com`", 
-                inline=False
-            )
+            # Only show update option if still pending
+            if status == 'pending':
+                embed.add_field(
+                    name="Need to change?", 
+                    value="`!updateemail new-email@example.com`", 
+                    inline=False
+                )
+            elif status == 'processed':
+                embed.add_field(
+                    name="Status Info", 
+                    value="Your email has been processed by admin. Points may have been awarded!", 
+                    inline=False
+                )
         
         # Send as DM if possible, otherwise send in channel and delete
         try:
