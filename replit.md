@@ -33,6 +33,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Email Management Dashboard**: Complete admin interface for viewing and processing user email submissions
 - **Removed Point Management Commands**: Removed !claim, !addpoints, !silentadd, !removepoints, !silentremove, !setpoints - all point management now exclusively through web dashboard
 - **Removed Admin Email Command**: Removed !submitemailfor reference - all email management now through web dashboard
+- **Privacy Enhanced Points System**: Changed !points to !mypoints (DM-only), removed ability to check other users' points for privacy
 
 ## Key Components
 

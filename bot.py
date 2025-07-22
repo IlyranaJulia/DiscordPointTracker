@@ -1245,34 +1245,42 @@ class PointsBot(commands.Bot):
 # Initialize bot
 bot = PointsBot()
 
-@bot.command(name='points', aliases=['balance', 'p'])
-async def check_points(ctx, member: discord.Member = None):
-    """Check your points balance or another user's balance"""
+@bot.command(name='mypoints', aliases=['balance', 'mybalance'])
+async def check_my_points(ctx):
+    """Check your points balance via DM only"""
     try:
-        # If no member specified, check the command author's points
-        target_user = member or ctx.author
+        balance = await bot.db.get_points(ctx.author.id)
         
-        balance = await bot.db.get_points(target_user.id)
+        embed = discord.Embed(
+            title="💰 Your Points Balance",
+            description=f"You currently have **{balance:,} points**",
+            color=discord.Color.blue()
+        )
+        embed.set_thumbnail(url=ctx.author.display_avatar.url)
         
-        if target_user == ctx.author:
-            embed = discord.Embed(
-                title="💰 Your Points Balance",
-                description=f"You currently have **{balance:,} points**",
-                color=discord.Color.blue()
-            )
-        else:
-            embed = discord.Embed(
-                title="💰 Points Balance",
-                description=f"{target_user.mention} has **{balance:,} points**",
-                color=discord.Color.blue()
-            )
-            
-        embed.set_thumbnail(url=target_user.display_avatar.url)
-        await ctx.send(embed=embed)
+        # Send as DM if possible, otherwise send in channel and delete
+        try:
+            await ctx.author.send(embed=embed)
+            # If DM works, send a brief public message
+            if ctx.guild:  # Only if command was used in a server
+                msg = await ctx.send("💰 Check your DMs for your points balance.")
+                await asyncio.sleep(5)
+                try:
+                    await msg.delete()
+                except:
+                    pass
+        except:
+            # If DM fails, send in channel and delete after delay
+            msg = await ctx.send(embed=embed)
+            await asyncio.sleep(15)
+            try:
+                await msg.delete()
+            except:
+                pass
         
     except Exception as e:
-        logger.error(f"Error in check_points command: {e}")
-        await ctx.send("❌ An error occurred while checking points balance.")
+        logger.error(f"Error in check_my_points command: {e}")
+        await ctx.send("❌ An error occurred while checking your points balance.")
 
 
 
@@ -1350,7 +1358,7 @@ async def help_command(ctx):
     # User commands
     embed.add_field(
         name="👤 User Commands",
-        value=f"`{Config.COMMAND_PREFIX}points [@user]` - Check your points or another user's points\n"
+        value=f"`{Config.COMMAND_PREFIX}mypoints` - Check your points balance (DM only)\n"
               f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard\n"
               f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (auto-deleted for privacy)\n"
               f"`{Config.COMMAND_PREFIX}updateemail <email>` - Update your submitted email\n"
