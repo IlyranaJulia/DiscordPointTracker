@@ -268,6 +268,54 @@ def dashboard():
             // Load initial stats
             refreshStats();
             
+            function loadTransactions() {
+                fetch('/api/recent_transactions')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '<table><tr><th>User ID</th><th>Amount</th><th>Type</th><th>Reason</th><th>Time</th></tr>';
+                    if (data.transactions && data.transactions.length > 0) {
+                        data.transactions.forEach(tx => {
+                            html += '<tr><td>' + tx.user_id + '</td><td>' + tx.amount + '</td><td>' + tx.type + '</td><td>' + (tx.reason || 'N/A') + '</td><td>' + tx.timestamp + '</td></tr>';
+                        });
+                    } else {
+                        html += '<tr><td colspan="5">No transactions found</td></tr>';
+                    }
+                    html += '</table>';
+                    document.getElementById('recent-transactions').innerHTML = html;
+                });
+            }
+            
+            function loadDatabaseStats() {
+                fetch('/api/database_stats')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '<div class="stats-grid">';
+                    html += '<div class="stat-box"><div class="stat-number">' + data.tables.points.rows + '</div><div>Users</div></div>';
+                    html += '<div class="stat-box"><div class="stat-number">' + data.tables.transactions.rows + '</div><div>Transactions</div></div>';
+                    html += '<div class="stat-box"><div class="stat-number">' + data.tables.achievements.rows + '</div><div>Achievements</div></div>';
+                    html += '<div class="stat-box"><div class="stat-number">' + data.total_points + '</div><div>Total Points</div></div>';
+                    html += '</div>';
+                    document.getElementById('db-stats').innerHTML = html;
+                });
+            }
+            
+            function loadAchievements() {
+                fetch('/api/recent_achievements')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '<table><tr><th>User ID</th><th>Type</th><th>Achievement</th><th>Points</th><th>Date</th></tr>';
+                    if (data.achievements && data.achievements.length > 0) {
+                        data.achievements.forEach(ach => {
+                            html += '<tr><td>' + ach.user_id + '</td><td>' + ach.achievement_type + '</td><td>' + ach.achievement_name + '</td><td>' + ach.points_earned + '</td><td>' + ach.earned_at + '</td></tr>';
+                        });
+                    } else {
+                        html += '<tr><td colspan="5">No achievements found</td></tr>';
+                    }
+                    html += '</table>';
+                    document.getElementById('recent-achievements').innerHTML = html;
+                });
+            }
+            
             // Form handlers
             document.getElementById('pointsForm').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -285,6 +333,61 @@ def dashboard():
                     if (data.success) {
                         resultDiv.innerHTML = '<div class="success">' + data.message + '</div>';
                         refreshStats();
+                    } else {
+                        resultDiv.innerHTML = '<div class="error">' + data.error + '</div>';
+                    }
+                });
+            });
+            
+            document.getElementById('achievementForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData);
+                
+                fetch('/api/add_achievement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('achievement-result');
+                    if (data.success) {
+                        resultDiv.innerHTML = '<div class="success">' + data.message + '</div>';
+                        loadAchievements();
+                        refreshStats();
+                        document.getElementById('achievementForm').reset();
+                    } else {
+                        resultDiv.innerHTML = '<div class="error">' + data.error + '</div>';
+                    }
+                });
+            });
+            
+            document.getElementById('userAnalyticsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData);
+                
+                fetch('/api/user_analytics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('user-analytics-result');
+                    if (data.success) {
+                        const analytics = data.analytics;
+                        let html = '<div class="card"><h4>User Analytics for ' + analytics.user_id + '</h4>';
+                        html += '<div class="stats-grid">';
+                        html += '<div class="stat-box"><div class="stat-number">' + analytics.current_balance + '</div><div>Current Balance</div></div>';
+                        html += '<div class="stat-box"><div class="stat-number">' + analytics.total_earned + '</div><div>Total Earned</div></div>';
+                        html += '<div class="stat-box"><div class="stat-number">' + analytics.total_spent + '</div><div>Total Spent</div></div>';
+                        html += '<div class="stat-box"><div class="stat-number">' + analytics.highest_balance + '</div><div>Highest Balance</div></div>';
+                        html += '<div class="stat-box"><div class="stat-number">' + analytics.transaction_count + '</div><div>Transactions</div></div>';
+                        html += '<div class="stat-box"><div class="stat-number">' + analytics.rank + '</div><div>Server Rank</div></div>';
+                        html += '</div></div>';
+                        resultDiv.innerHTML = html;
                     } else {
                         resultDiv.innerHTML = '<div class="error">' + data.error + '</div>';
                     }
@@ -422,47 +525,195 @@ def quick_stats():
             "total_achievements": 0
         })
 
+@app.route("/api/recent_achievements")
+def recent_achievements():
+    """API endpoint for recent achievements"""
+    try:
+        from database import PointsDatabase
+        db = PointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get recent achievements from database
+            achievements_data = loop.run_until_complete(db.get_achievements(limit=10))
+            
+            # Format achievements for API response
+            achievements = []
+            for ach in achievements_data:
+                achievements.append({
+                    "id": ach[0],
+                    "user_id": str(ach[1]),
+                    "achievement_type": ach[2],
+                    "achievement_name": ach[3],
+                    "points_earned": ach[4],
+                    "earned_at": ach[5]
+                })
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"achievements": achievements})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting recent achievements: {e}")
+        return jsonify({"achievements": []})
+
 @app.route("/api/database_stats")
 def database_stats():
     """API endpoint for detailed database statistics"""
-    return jsonify({
-        "tables": {
-            "points": {"rows": 15, "size": "2.3 KB"},
-            "transactions": {"rows": 89, "size": "8.7 KB"},
-            "achievements": {"rows": 12, "size": "1.9 KB"},
-            "user_stats": {"rows": 15, "size": "3.1 KB"}
-        },
-        "total_size": "16.0 KB",
-        "last_backup": "2025-07-22 07:00:00"
-    })
+    try:
+        from database import PointsDatabase
+        db = PointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get database statistics
+            stats = loop.run_until_complete(db.get_database_stats())
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            # Format response with real data
+            return jsonify({
+                "tables": {
+                    "points": {"rows": stats.get('total_users', 0)},
+                    "transactions": {"rows": stats.get('total_transactions', 0)},
+                    "achievements": {"rows": stats.get('total_achievements', 0)},
+                    "user_stats": {"rows": stats.get('total_users', 0)}
+                },
+                "total_points": stats.get('total_points', 0),
+                "most_active_user": stats.get('most_active_user')
+            })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting database stats: {e}")
+        return jsonify({
+            "tables": {"points": {"rows": 0}, "transactions": {"rows": 0}, "achievements": {"rows": 0}, "user_stats": {"rows": 0}},
+            "total_points": 0,
+            "most_active_user": None
+        })
 
 @app.route("/api/recent_transactions")
 def recent_transactions():
     """API endpoint for recent transactions"""
-    return jsonify({
-        "transactions": [
-            {"user_id": "123456", "amount": 100, "type": "add", "timestamp": "2025-07-22 07:05:00"},
-            {"user_id": "789012", "amount": -50, "type": "remove", "timestamp": "2025-07-22 07:03:00"},
-            {"user_id": "345678", "amount": 200, "type": "set", "timestamp": "2025-07-22 07:01:00"}
-        ]
-    })
+    try:
+        from database import PointsDatabase
+        db = PointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get recent transactions from database
+            transactions_data = loop.run_until_complete(db.get_transactions(limit=10))
+            
+            # Format transactions for API response
+            transactions = []
+            for tx in transactions_data:
+                transactions.append({
+                    "id": tx[0],
+                    "user_id": str(tx[1]),
+                    "amount": tx[2],
+                    "type": tx[3],
+                    "admin_id": tx[4],
+                    "reason": tx[5] or "No reason provided",
+                    "old_balance": tx[6],
+                    "new_balance": tx[7],
+                    "timestamp": tx[8]
+                })
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"transactions": transactions})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting recent transactions: {e}")
+        return jsonify({"transactions": []})
 
 @app.route("/api/add_achievement", methods=["POST"])
 def add_achievement():
     """API endpoint for adding achievements"""
     try:
         data = request.json
-        user_id = data.get('user_id')
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id_str = data.get('user_id')
         ach_type = data.get('type')
         ach_name = data.get('name')
-        points = int(data.get('points', 0))
+        points_str = data.get('points', '0')
         
-        # Mock response - in production you'd add to database
-        return jsonify({
-            "success": True,
-            "message": f"Added achievement '{ach_name}' to user {user_id} with {points} bonus points"
-        })
+        if not all([user_id_str, ach_type, ach_name]):
+            return jsonify({"success": False, "error": "Missing required fields"})
+        
+        try:
+            user_id = int(user_id_str)
+            points = int(points_str)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid user ID or points format"})
+        
+        # Connect to database and add achievement
+        from database import PointsDatabase
+        db = PointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Add achievement to database
+            success = loop.run_until_complete(db.add_achievement(user_id, ach_type, ach_name, points))
+            
+            if success:
+                # If achievement has bonus points, add them to user's balance
+                if points > 0:
+                    loop.run_until_complete(db.update_points(user_id, points, 0, f"Achievement bonus: {ach_name}"))
+                
+                message = f"Added achievement '{ach_name}' to user {user_id}"
+                if points > 0:
+                    message += f" with {points} bonus points"
+            else:
+                return jsonify({"success": False, "error": "Failed to add achievement to database"})
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"success": True, "message": message})
+            
+        finally:
+            loop.close()
+            
     except Exception as e:
+        logger.error(f"Error adding achievement: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/user_analytics", methods=["POST"])
