@@ -80,7 +80,7 @@ def home():
                     <p><strong>/submitemail</strong> - Submit email (private)</p>
                     <p><strong>/updateemail</strong> - Update submitted email</p>
                     <p><strong>/myemail</strong> - Check email status</p>
-                    <p><strong>/help</strong> - Show all commands</p>
+                    <p><strong>/pipihelp</strong> - Show all commands</p>
                 </div>
             </div>
         </div>
@@ -1226,7 +1226,7 @@ class PointsBot(commands.Bot):
             logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
             
             # Set bot status for slash commands
-            activity = discord.Game(name="/help for commands | /mypoints | /pointsboard")
+            activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
             await self.change_presence(activity=activity)
             
             # Sync slash commands
@@ -1559,8 +1559,8 @@ async def myemail_slash(interaction: discord.Interaction):
             ephemeral=True
         )
 
-@bot.tree.command(name="help", description="Show help information for all commands")
-async def help_slash(interaction: discord.Interaction):
+@bot.tree.command(name="pipihelp", description="Show help information for all commands")
+async def pipihelp_slash(interaction: discord.Interaction):
     """Show help information for all commands"""
     embed = discord.Embed(
         title="🤖 Points Bot Help",
@@ -1576,7 +1576,7 @@ async def help_slash(interaction: discord.Interaction):
               "`/submitemail <email>` - Submit order email (private)\n"
               "`/updateemail <email>` - Update your submitted email\n"
               "`/myemail` - Check your email submission status\n"
-              "`/help` - Show this help message",
+              "`/pipihelp` - Show this help message",
         inline=False
     )
     
