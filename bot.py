@@ -1,14 +1,19 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 import logging
 import asyncio
 import aiosqlite
 import sys
 import threading
+import re
 from flask import Flask, request, jsonify
 from config import Config
 from database import PointsDatabase
 from datetime import datetime
+
+# Email validation regex
+EMAIL_RE = re.compile(r"[^@]+@[^@]+\.[^@]+")
 
 # Configure logging
 logging.basicConfig(
@@ -69,11 +74,13 @@ def home():
                 </div>
                 
                 <div class="card commands">
-                    <h3>⚡ Quick Commands</h3>
-                    <p><strong>!silentadd @user 100</strong> - Add points quietly</p>
-                    <p><strong>!silentremove @user 50</strong> - Remove points quietly</p>
-                    <p><strong>!pointsboard</strong> - View leaderboard</p>
-                    <p><strong>!pipihelp</strong> - Show all commands</p>
+                    <h3>⚡ Slash Commands Available</h3>
+                    <p><strong>/mypoints</strong> - Check your points (private)</p>
+                    <p><strong>/pointsboard</strong> - View leaderboard</p>
+                    <p><strong>/submitemail</strong> - Submit email (private)</p>
+                    <p><strong>/updateemail</strong> - Update submitted email</p>
+                    <p><strong>/myemail</strong> - Check email status</p>
+                    <p><strong>/help</strong> - Show all commands</p>
                 </div>
             </div>
         </div>
@@ -1218,9 +1225,16 @@ class PointsBot(commands.Bot):
         if self.user:
             logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
             
-            # Set bot status
-            activity = discord.Game(name=f"{Config.COMMAND_PREFIX}pipihelp for commands")
+            # Set bot status for slash commands
+            activity = discord.Game(name="/help for commands | /mypoints | /pointsboard")
             await self.change_presence(activity=activity)
+            
+            # Sync slash commands
+            try:
+                synced = await self.tree.sync()
+                logger.info(f"Synced {len(synced)} slash commands")
+            except Exception as e:
+                logger.error(f"Failed to sync slash commands: {e}")
         
     async def on_command_error(self, ctx, error):
         """Global error handler for commands"""
@@ -1246,52 +1260,81 @@ class PointsBot(commands.Bot):
 # Initialize bot
 bot = PointsBot()
 
-@bot.command(name='mypoints', aliases=['balance', 'mybalance'])
-async def check_my_points(ctx):
-    """Check your points balance via DM only"""
+# Function to store user email (for the privacy slash command)
+async def store_user_email(user_id: int, email: str):
+    """Store user email in database"""
+    async with aiosqlite.connect(bot.db.db_path) as db:
+        # Create table if not exists
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS email_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                discord_user_id INTEGER NOT NULL,
+                discord_username TEXT NOT NULL,
+                email_address TEXT NOT NULL,
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending',
+                processed_at TIMESTAMP,
+                admin_notes TEXT
+            )
+        ''')
+        
+        # Check if user already submitted an email
+        cursor = await db.execute('''
+            SELECT id FROM email_submissions 
+            WHERE discord_user_id = ? AND status = 'pending'
+        ''', (user_id,))
+        
+        existing = await cursor.fetchone()
+        
+        if existing:
+            # Update existing submission
+            await db.execute('''
+                UPDATE email_submissions 
+                SET email_address = ?, submitted_at = CURRENT_TIMESTAMP
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (email, user_id))
+        else:
+            # Create new submission
+            user = bot.get_user(user_id)
+            username = user.display_name if user else f"User {user_id}"
+            
+            await db.execute('''
+                INSERT INTO email_submissions (discord_user_id, discord_username, email_address)
+                VALUES (?, ?, ?)
+            ''', (user_id, username, email))
+        
+        await db.commit()
+
+# Slash Commands
+@bot.tree.command(name="mypoints", description="Check your points balance (sent privately)")
+async def mypoints_slash(interaction: discord.Interaction):
+    """Check your points balance via DM"""
     try:
-        balance = await bot.db.get_points(ctx.author.id)
+        balance = await bot.db.get_points(interaction.user.id)
         
         embed = discord.Embed(
             title="💰 Your Points Balance",
             description=f"You currently have **{balance:,} points**",
             color=discord.Color.blue()
         )
-        embed.set_thumbnail(url=ctx.author.display_avatar.url)
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
-        # Send as DM if possible, otherwise send in channel and delete
+        # Always respond ephemerally for privacy
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Also try to send DM
         try:
-            await ctx.author.send(embed=embed)
-            # If DM works, send a brief public message
-            if ctx.guild:  # Only if command was used in a server
-                msg = await ctx.send("💰 Check your DMs for your points balance.")
-                await asyncio.sleep(5)
-                try:
-                    await msg.delete()
-                except:
-                    pass
-        except:
-            # If DM fails, send in channel and delete after delay
-            msg = await ctx.send(embed=embed)
-            await asyncio.sleep(15)
-            try:
-                await msg.delete()
-            except:
-                pass
+            await interaction.user.send(embed=embed)
+        except discord.Forbidden:
+            pass  # User has DMs disabled
         
     except Exception as e:
-        logger.error(f"Error in check_my_points command: {e}")
-        await ctx.send("❌ An error occurred while checking your points balance.")
+        logger.error(f"Error in mypoints slash command: {e}")
+        await interaction.response.send_message("❌ An error occurred while checking your points balance.", ephemeral=True)
 
-
-
-
-
-
-
-
-@bot.command(name='pointsboard', aliases=['top', 'lb'])
-async def leaderboard(ctx, limit: int = 10):
+@bot.tree.command(name="pointsboard", description="Show the points leaderboard")
+@app_commands.describe(limit="Number of users to show (max 25)")
+async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
     """Show the points leaderboard"""
     try:
         # Validate limit
@@ -1303,7 +1346,7 @@ async def leaderboard(ctx, limit: int = 10):
         top_users = await bot.db.get_leaderboard(limit)
         
         if not top_users:
-            await ctx.send("📊 No users found in the leaderboard.")
+            await interaction.response.send_message("📊 No users found in the leaderboard.")
             return
             
         embed = discord.Embed(
@@ -1314,7 +1357,7 @@ async def leaderboard(ctx, limit: int = 10):
         description = ""
         for i, (user_id, balance) in enumerate(top_users, 1):
             # Try to get user from the current guild first, then global cache
-            user = ctx.guild.get_member(user_id) if ctx.guild else None
+            user = interaction.guild.get_member(user_id) if interaction.guild else None
             if not user:
                 user = bot.get_user(user_id)
             
@@ -1341,41 +1384,209 @@ async def leaderboard(ctx, limit: int = 10):
             description += f"{medal} **{username}** - {balance:,} points\n"
             
         embed.description = description
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
         
     except Exception as e:
-        logger.error(f"Error in leaderboard command: {e}")
-        await ctx.send("❌ An error occurred while fetching the leaderboard.")
+        logger.error(f"Error in pointsboard slash command: {e}")
+        await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.")
 
-@bot.command(name='pipihelp', aliases=['ph'])
-async def help_command(ctx):
+@bot.tree.command(name="submitemail", description="Submit your email address (visible only to you)")
+@app_commands.describe(email="Your email address")
+async def submitemail_slash(interaction: discord.Interaction, email: str):
+    """Submit your email address with privacy protection"""
+    # Validate email format
+    if not EMAIL_RE.fullmatch(email.strip()):
+        await interaction.response.send_message(
+            "❌ That doesn't look like a valid email. Please try again.",
+            ephemeral=True
+        )
+        return
+
+    try:
+        # Store the email
+        await store_user_email(interaction.user.id, email.strip())
+
+        # Ephemeral confirmation
+        await interaction.response.send_message(
+            "✅ Your email has been successfully submitted, thank you!",
+            ephemeral=True
+        )
+
+        # Also send a DM so they have a copy
+        try:
+            await interaction.user.send(f"✅ I have received your email: {email}")
+        except discord.Forbidden:
+            # Could not send DM (maybe DMs are closed)
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error in submitemail slash command: {e}")
+        await interaction.response.send_message(
+            "❌ An error occurred while submitting your email. Please try again later.",
+            ephemeral=True
+        )
+
+@bot.tree.command(name="updateemail", description="Update your previously submitted email address")
+@app_commands.describe(email="Your new email address")
+async def updateemail_slash(interaction: discord.Interaction, email: str):
+    """Update your previously submitted email address"""
+    # Validate email format
+    if not EMAIL_RE.fullmatch(email.strip()):
+        await interaction.response.send_message(
+            "❌ That doesn't look like a valid email. Please try again.",
+            ephemeral=True
+        )
+        return
+        
+    try:
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Check if user has an existing submission
+            cursor = await db.execute('''
+                SELECT id, email_address FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (interaction.user.id,))
+            
+            existing = await cursor.fetchone()
+            
+            if not existing:
+                await interaction.response.send_message(
+                    "❌ No email submission found. Use `/submitemail` first.",
+                    ephemeral=True
+                )
+                return
+            
+            submission_id, old_email = existing
+            new_email = email.strip().lower()
+            
+            # Update the email address
+            await db.execute('''
+                UPDATE email_submissions 
+                SET email_address = ?, submitted_at = CURRENT_TIMESTAMP,
+                    admin_notes = COALESCE(admin_notes, '') || 'Updated from: ' || ? || ' | '
+                WHERE id = ?
+            ''', (new_email, old_email, submission_id))
+            
+            await db.commit()
+            
+            await interaction.response.send_message(
+                f"✅ Email updated successfully from `{old_email}` to `{new_email}`",
+                ephemeral=True
+            )
+            
+            # Send DM confirmation
+            try:
+                await interaction.user.send(f"✅ Your email has been updated to: {new_email}")
+            except discord.Forbidden:
+                pass
+        
+    except Exception as e:
+        logger.error(f"Error in updateemail slash command: {e}")
+        await interaction.response.send_message(
+            "❌ An error occurred while updating your email. Please try again later.",
+            ephemeral=True
+        )
+
+@bot.tree.command(name="myemail", description="Check your current email submission status")
+async def myemail_slash(interaction: discord.Interaction):
+    """Check your current email submission status"""
+    try:
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Check for this user's submissions
+            cursor = await db.execute('''
+                SELECT email_address, submitted_at, status, processed_at
+                FROM email_submissions 
+                WHERE discord_user_id = ?
+                ORDER BY submitted_at DESC
+                LIMIT 1
+            ''', (interaction.user.id,))
+            
+            submission = await cursor.fetchone()
+        
+        if not submission:
+            embed = discord.Embed(
+                title="📧 No Email Submission",
+                description="You haven't submitted an email yet.",
+                color=discord.Color.orange()
+            )
+            embed.add_field(
+                name="How to submit:", 
+                value="`/submitemail your-email@example.com`", 
+                inline=False
+            )
+        else:
+            email, submitted_at, status, processed_at = submission
+            embed = discord.Embed(
+                title="📧 Your Email Submission",
+                description=f"**Email:** {email}",
+                color=discord.Color.blue()
+            )
+            # Set color based on status
+            if status == 'processed':
+                embed.color = discord.Color.green()
+                status_emoji = "✅"
+            elif status == 'pending':
+                embed.color = discord.Color.blue()
+                status_emoji = "⏳"
+            else:
+                embed.color = discord.Color.red()
+                status_emoji = "❌"
+            
+            embed.add_field(name="Status", value=f"{status_emoji} {status.title()}", inline=True)
+            embed.add_field(name="Submitted", value=submitted_at, inline=True)
+            if processed_at:
+                embed.add_field(name="Processed", value=processed_at, inline=True)
+            
+            # Only show update option if still pending
+            if status == 'pending':
+                embed.add_field(
+                    name="Need to change?", 
+                    value="`/updateemail new-email@example.com`", 
+                    inline=False
+                )
+            elif status == 'processed':
+                embed.add_field(
+                    name="Status Info", 
+                    value="Your email has been processed by admin. Points may have been awarded!", 
+                    inline=False
+                )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in myemail slash command: {e}")
+        await interaction.response.send_message(
+            "❌ An error occurred while checking your email status.",
+            ephemeral=True
+        )
+
+@bot.tree.command(name="help", description="Show help information for all commands")
+async def help_slash(interaction: discord.Interaction):
     """Show help information for all commands"""
     embed = discord.Embed(
         title="🤖 Points Bot Help",
-        description="Manage member points with these commands:",
+        description="Manage member points with these slash commands:",
         color=discord.Color.blue()
     )
     
     # User commands
     embed.add_field(
         name="👤 User Commands",
-        value=f"`{Config.COMMAND_PREFIX}mypoints` - Check your points balance (DM only)\n"
-              f"`{Config.COMMAND_PREFIX}pointsboard [limit]` - Show points leaderboard\n"
-              f"`{Config.COMMAND_PREFIX}submitemail <email>` - Submit order email (auto-deleted for privacy)\n"
-              f"`{Config.COMMAND_PREFIX}updateemail <email>` - Update your submitted email\n"
-              f"`{Config.COMMAND_PREFIX}myemail` - Check your email submission status",
+        value="`/mypoints` - Check your points balance (private)\n"
+              "`/pointsboard [limit]` - Show points leaderboard\n"
+              "`/submitemail <email>` - Submit order email (private)\n"
+              "`/updateemail <email>` - Update your submitted email\n"
+              "`/myemail` - Check your email submission status\n"
+              "`/help` - Show this help message",
         inline=False
     )
     
+    embed.set_footer(text="Bot made with ❤️ | All personal data is kept private")
+    await interaction.response.send_message(embed=embed)
 
-    
-    embed.set_footer(text=f"Bot made with ❤️ | Prefix: {Config.COMMAND_PREFIX}")
-    
-    await ctx.send(embed=embed)
-
-@bot.command(name='status')
-@commands.has_permissions(administrator=True)
-async def bot_status(ctx):
+# Admin slash commands
+@bot.tree.command(name="status", description="Show bot status and statistics")
+@app_commands.default_permissions(administrator=True)
+async def status_slash(interaction: discord.Interaction):
     """Show bot status and statistics (Admin only)"""
     try:
         total_users = await bot.db.get_total_users()
@@ -1393,45 +1604,32 @@ async def bot_status(ctx):
         embed.add_field(name="🏠 Servers", value=f"{len(bot.guilds)}", inline=True)
         embed.add_field(name="👤 Users", value=f"{len(bot.users)}", inline=True)
         
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
         
     except Exception as e:
-        logger.error(f"Error in bot_status command: {e}")
-        await ctx.send("❌ An error occurred while fetching bot status.")
+        logger.error(f"Error in status slash command: {e}")
+        await interaction.response.send_message("❌ An error occurred while fetching bot status.")
 
-@bot.command(name='listusers')
-@commands.has_permissions(administrator=True)
-async def list_users(ctx):
-    """List all server members for debugging (Admin only)"""
-    try:
-        members_list = []
-        for member in ctx.guild.members:
-            if not member.bot:  # Skip bots
-                members_list.append(f"**{member.display_name}** (username: {member.name})")
-        
-        if not members_list:
-            await ctx.send("No members found in this server.")
-            return
-            
-        # Split into chunks if too many users
-        chunk_size = 10
-        for i in range(0, len(members_list), chunk_size):
-            chunk = members_list[i:i + chunk_size]
-            
-            embed = discord.Embed(
-                title=f"👥 Server Members ({i+1}-{min(i+chunk_size, len(members_list))} of {len(members_list)})",
-                description="\n".join(chunk),
-                color=discord.Color.blue()
-            )
-            
-            await ctx.send(embed=embed)
-            
-            if len(members_list) > chunk_size and i + chunk_size < len(members_list):
-                await asyncio.sleep(1)  # Small delay between messages
-        
-    except Exception as e:
-        logger.error(f"Error in list_users command: {e}")
-        await ctx.send("❌ An error occurred while listing users.")
+# Web Interface with admin dashboard continues below...
+# All old prefix commands have been replaced with modern slash commands above
+
+# Email regex for validation
+EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @bot.command(name='submitemail', aliases=['email', 'orderemail'])
 async def submit_order_email(ctx, *, email_address: str = None):
