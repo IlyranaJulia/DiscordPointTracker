@@ -313,6 +313,21 @@ class PostgreSQLPointsDatabase:
                 'total_points': 0
             }
     
+    async def get_achievements(self, limit: int = 10) -> List[Tuple]:
+        """Get recent achievements"""
+        try:
+            async with self.pool.acquire() as conn:
+                rows = await conn.fetch('''
+                    SELECT user_id, achievement_type, achievement_name, points_earned, earned_at
+                    FROM achievements 
+                    ORDER BY earned_at DESC 
+                    LIMIT $1
+                ''', limit)
+                return [tuple(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error getting achievements: {e}")
+            return []
+    
     async def close(self):
         """Close the database connection"""
         if self.pool:

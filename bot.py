@@ -795,10 +795,10 @@ def quick_stats():
             loop.run_until_complete(db.close())
             
             return jsonify({
-                "total_users": stats.get('total_users', 0),
-                "total_points": stats.get('total_points', 0),
-                "total_transactions": stats.get('total_transactions', 0),
-                "total_achievements": stats.get('total_achievements', 0)
+                "total_users": stats['tables']['points']['rows'],
+                "total_points": stats['total_points'],
+                "total_transactions": stats['tables']['transactions']['rows'],
+                "total_achievements": stats['tables']['achievements']['rows']
             })
             
         finally:
