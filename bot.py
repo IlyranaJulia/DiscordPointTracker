@@ -3,14 +3,14 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 import asyncio
-import aiosqlite
+import asyncpg
 import sys
 import threading
 import re
 import os
 from flask import Flask, request, jsonify
 from config import Config
-from database import PointsDatabase
+from database_postgresql import PostgreSQLPointsDatabase
 from datetime import datetime
 
 # Email validation regex
@@ -622,8 +622,8 @@ def manage_points():
         
         # Simple approach: create a new database instance for Flask operations
         try:
-            from database import PointsDatabase
-            db = PointsDatabase()
+            from database_postgresql import PostgreSQLPointsDatabase
+            db = PostgreSQLPointsDatabase()
             
             # Run the async database operation
             import asyncio
@@ -684,8 +684,8 @@ def manage_points():
 def quick_stats():
     """API endpoint for quick dashboard stats"""
     try:
-        from database import PointsDatabase
-        db = PointsDatabase()
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
         
         import asyncio
         loop = asyncio.new_event_loop()
@@ -724,8 +724,8 @@ def quick_stats():
 def recent_achievements():
     """API endpoint for recent achievements"""
     try:
-        from database import PointsDatabase
-        db = PointsDatabase()
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
         
         import asyncio
         loop = asyncio.new_event_loop()
@@ -766,8 +766,8 @@ def recent_achievements():
 def database_stats():
     """API endpoint for detailed database statistics"""
     try:
-        from database import PointsDatabase
-        db = PointsDatabase()
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
         
         import asyncio
         loop = asyncio.new_event_loop()
@@ -810,8 +810,8 @@ def database_stats():
 def recent_transactions():
     """API endpoint for recent transactions"""
     try:
-        from database import PointsDatabase
-        db = PointsDatabase()
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
         
         import asyncio
         loop = asyncio.new_event_loop()
@@ -874,8 +874,8 @@ def add_achievement():
             return jsonify({"success": False, "error": "Invalid user ID or points format"})
         
         # Connect to database and add achievement
-        from database import PointsDatabase
-        db = PointsDatabase()
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
         
         import asyncio
         loop = asyncio.new_event_loop()
@@ -928,8 +928,8 @@ def user_analytics():
         except ValueError:
             return jsonify({"success": False, "error": "Invalid user ID format"})
         
-        from database import PointsDatabase
-        db = PointsDatabase()
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
         
         import asyncio
         loop = asyncio.new_event_loop()
@@ -1292,7 +1292,7 @@ class PointsBot(commands.Bot):
             help_command=None  # We'll create a custom help command
         )
         
-        self.db = PointsDatabase()
+        self.db = PostgreSQLPointsDatabase()
         
     async def setup_hook(self):
         """Called when the bot is starting up"""

@@ -18,6 +18,13 @@ The application follows a modular architecture with clear separation of concerns
 - **Logging Layer**: Comprehensive logging system for monitoring and debugging
 
 ## Recent Changes (2025-07-22 - 2025-07-23)
+
+### Database Migration to PostgreSQL (2025-07-23)
+- **Database Persistence Issue Resolved**: SQLite data was being lost on Replit refreshes
+- **PostgreSQL Implementation**: Created new database layer with full async support using asyncpg
+- **Data Migration**: Successfully migrated all 17 email submissions and user data to permanent PostgreSQL storage
+- **Enhanced Reliability**: User data now persists permanently across bot restarts and Replit environment refreshes
+- **Connection Pooling**: Implemented efficient database connection pooling for improved performance
 ### Major Updates
 - **Complete Slash Commands Conversion**: All prefix commands (!) converted to modern Discord slash commands (/)
 - **Code Cleanup**: Removed duplicate Python files (bot_backup.py, test_order_system.py, order_processor_simple.py)
@@ -131,10 +138,11 @@ The application follows a modular architecture with clear separation of concerns
 - Fallback defaults provided for development
 
 ### Database Strategy
-- **Choice**: SQLite for simplicity and zero-configuration deployment
-- **Rationale**: Single-file database perfect for Discord bot use case
-- **Scalability**: Suitable for typical Discord server sizes
-- **Backup**: Optional backup functionality via configuration flags
+- **Choice**: PostgreSQL for permanent data persistence and scalability
+- **Rationale**: Cloud-hosted database ensures data survives Replit restarts and refreshes
+- **Migration**: Successfully migrated from SQLite to PostgreSQL (July 23, 2025)
+- **Data Persistence**: All user points, transactions, achievements, and email submissions permanently stored
+- **Scalability**: Production-ready for growing Discord server communities
 
 ### Logging Strategy
 - **Dual Output**: File logging and console output
