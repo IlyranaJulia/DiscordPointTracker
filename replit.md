@@ -34,6 +34,8 @@ The application follows a modular architecture with clear separation of concerns
 - **Flask Server Priority**: Ensured Flask web server starts before Discord bot for deployment health check requirements
 - **Error-Resistant Health Checks**: All health endpoints now return 200 even during bot initialization or errors
 - **Deployment Verification**: All endpoints tested and confirmed returning proper HTTP 200 status codes
+- **Port Configuration**: Updated Flask server to use PORT environment variable for Cloud Run compatibility
+- **Replit Deployment Ready**: Application configured for proper Replit deployment with health checks
 
 ### Bot Features
 - **Enhanced User Commands**: /pipihelp (renamed from /help), /mypoints, /pointsboard, /submitemail, /updateemail, /myemail
