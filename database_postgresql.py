@@ -242,15 +242,25 @@ class PostgreSQLPointsDatabase:
             logger.error(f"Error getting email submissions: {e}")
             return []
     
-    async def execute_query(self, query: str, *args) -> List[Tuple]:
-        """Execute a query and return results"""
+    async def execute_query(self, query: str, *args):
+        """Execute a query and return results (for SELECT) or status (for non-SELECT)"""
         try:
             async with self.pool.acquire() as conn:
-                result = await conn.fetch(query, *args)
-                return [tuple(row) for row in result]
+                query_lower = query.strip().lower()
+                if query_lower.startswith('select'):
+                    # For SELECT queries, return results
+                    result = await conn.fetch(query, *args)
+                    return [tuple(row) for row in result]
+                else:
+                    # For non-SELECT queries (INSERT, UPDATE, DELETE), return status
+                    result = await conn.execute(query, *args)
+                    return result
         except Exception as e:
             logger.error(f"Error executing query: {e}")
-            return []
+            if query.strip().lower().startswith('select'):
+                return []
+            else:
+                return None
     
     async def close(self):
         """Close the database connection"""

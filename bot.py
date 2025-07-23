@@ -475,14 +475,24 @@ def dashboard():
                     container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No email submissions found</div>';
                     return;
                 }
+
+                // Add bulk actions toolbar
+                let html = '<div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">';
+                html += '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">';
+                html += '<label style="font-weight: bold; margin-right: 10px;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"> Select All</label>';
+                html += '<button onclick="bulkAction(\'process\')" style="background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">✓ Mark Selected as Processed</button>';
+                html += '<button onclick="bulkAction(\'delete\')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Delete Selected</button>';
+                html += '<span id="selected-count" style="margin-left: 10px; font-size: 12px; color: #666;">0 selected</span>';
+                html += '</div></div>';
                 
-                let html = '<table><thead><tr>';
-                html += '<th>Discord User</th><th>User ID</th><th>Email</th><th>Status</th>';
+                html += '<table><thead><tr>';
+                html += '<th style="width: 40px;">Select</th><th>Discord User</th><th>User ID</th><th>Email</th><th>Status</th>';
                 html += '<th>Submitted</th><th>Actions</th></tr></thead><tbody>';
                 
                 submissions.forEach(sub => {
                     const statusColor = sub.status === 'pending' ? '#ffc107' : '#28a745';
                     html += '<tr>';
+                    html += '<td><input type="checkbox" class="submission-checkbox" value="' + sub.id + '" onchange="updateSelectedCount()"></td>';
                     html += '<td><strong>' + sub.discord_username + '</strong></td>';
                     html += '<td><code style="font-size: 11px;">' + sub.discord_user_id + '</code></td>';
                     html += '<td><strong>' + sub.email_address + '</strong></td>';
@@ -499,6 +509,78 @@ def dashboard():
                 
                 html += '</tbody></table>';
                 container.innerHTML = html;
+            }
+
+            function toggleSelectAll() {
+                const selectAll = document.getElementById('select-all');
+                const checkboxes = document.querySelectorAll('.submission-checkbox');
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = selectAll.checked;
+                });
+                
+                updateSelectedCount();
+            }
+
+            function updateSelectedCount() {
+                const checkboxes = document.querySelectorAll('.submission-checkbox:checked');
+                const count = checkboxes.length;
+                document.getElementById('selected-count').textContent = count + ' selected';
+                
+                // Update "Select All" checkbox state
+                const allCheckboxes = document.querySelectorAll('.submission-checkbox');
+                const selectAllCheckbox = document.getElementById('select-all');
+                if (selectAllCheckbox) {
+                    if (count === 0) {
+                        selectAllCheckbox.indeterminate = false;
+                        selectAllCheckbox.checked = false;
+                    } else if (count === allCheckboxes.length) {
+                        selectAllCheckbox.indeterminate = false;
+                        selectAllCheckbox.checked = true;
+                    } else {
+                        selectAllCheckbox.indeterminate = true;
+                    }
+                }
+            }
+
+            async function bulkAction(action) {
+                const selectedCheckboxes = document.querySelectorAll('.submission-checkbox:checked');
+                const selectedIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+                
+                if (selectedIds.length === 0) {
+                    alert('Please select at least one submission');
+                    return;
+                }
+
+                let confirmMessage = '';
+                if (action === 'process') {
+                    confirmMessage = `Mark ${selectedIds.length} selected submissions as processed?`;
+                } else if (action === 'delete') {
+                    confirmMessage = `Delete ${selectedIds.length} selected submissions? This cannot be undone.`;
+                }
+
+                if (!confirm(confirmMessage)) return;
+
+                try {
+                    const response = await fetch('/api/bulk_email_action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            action: action,
+                            submission_ids: selectedIds 
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadEmailSubmissions();
+                        alert(result.message);
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
             }
 
             async function markEmailProcessed(submissionId) {
@@ -1186,6 +1268,66 @@ def export_email_submissions():
             
     except Exception as e:
         logger.error(f"Error exporting email submissions: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bulk_email_action", methods=["POST"])
+def bulk_email_action():
+    """API endpoint for bulk actions on email submissions"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        action = data.get('action')
+        submission_ids = data.get('submission_ids', [])
+        
+        if not action or not submission_ids:
+            return jsonify({"success": False, "error": "Action and submission_ids are required"})
+        
+        if action not in ['process', 'delete']:
+            return jsonify({"success": False, "error": "Invalid action. Use 'process' or 'delete'"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            if action == 'process':
+                # Mark submissions as processed
+                for submission_id in submission_ids:
+                    update_query = '''
+                        UPDATE email_submissions 
+                        SET status = 'processed', processed_at = CURRENT_TIMESTAMP
+                        WHERE id = $1
+                    '''
+                    loop.run_until_complete(db.execute_query(update_query, submission_id))
+                
+                message = f"Successfully marked {len(submission_ids)} submissions as processed"
+                
+            elif action == 'delete':
+                # Delete submissions
+                for submission_id in submission_ids:
+                    delete_query = 'DELETE FROM email_submissions WHERE id = $1'
+                    loop.run_until_complete(db.execute_query(delete_query, submission_id))
+                
+                message = f"Successfully deleted {len(submission_ids)} submissions"
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"success": True, "message": message})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error in bulk email action: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/clear_processed_emails", methods=["POST"])
