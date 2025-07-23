@@ -1635,19 +1635,34 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
 
 @bot.tree.command(name="myemail", description="Check your current email submission status")
 async def myemail_slash(interaction: discord.Interaction):
-    """Check your current email submission status"""
+    """Check your current email submission status - always fetches fresh data"""
     try:
+        # Always create fresh database connection to avoid any caching issues
         async with aiosqlite.connect(bot.db.db_path) as db:
-            # Check for this user's submissions
+            # Force fresh data by checking all user submissions first
+            logger.info(f"Checking email status for user {interaction.user.id}")
+            
+            # Get all submissions for this user to see the full picture
             cursor = await db.execute('''
-                SELECT email_address, submitted_at, status, processed_at
+                SELECT id, email_address, submitted_at, status, processed_at
                 FROM email_submissions 
                 WHERE discord_user_id = ?
                 ORDER BY submitted_at DESC
-                LIMIT 1
             ''', (interaction.user.id,))
             
-            submission = await cursor.fetchone()
+            all_submissions = await cursor.fetchall()
+            submission_list = list(all_submissions)
+            logger.info(f"User {interaction.user.id} has {len(submission_list)} total submissions in database")
+            
+            # Get the most recent submission
+            submission = submission_list[0] if submission_list else None
+            
+            # Debug logging to track what we found
+            if submission:
+                sub_id, email, submitted_at, status, processed_at = submission
+                logger.info(f"User {interaction.user.id} latest submission: ID={sub_id}, Email={email}, Status={status}, Processed={processed_at}")
+            else:
+                logger.info(f"User {interaction.user.id} has no email submissions in database")
         
         if not submission:
             embed = discord.Embed(
@@ -1661,7 +1676,7 @@ async def myemail_slash(interaction: discord.Interaction):
                 inline=False
             )
         else:
-            email, submitted_at, status, processed_at = submission
+            sub_id, email, submitted_at, status, processed_at = submission
             embed = discord.Embed(
                 title="📧 Your Email Submission",
                 description=f"**Email:** {email}",
@@ -1791,6 +1806,57 @@ async def refresh_presence_slash(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in refresh_presence slash command: {e}")
         await interaction.followup.send("❌ An error occurred while refreshing bot presence.")
+
+@bot.tree.command(name="checkemail", description="Admin: Check any user's email submission status")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(user="Discord user to check email status for")
+async def check_email_admin_slash(interaction: discord.Interaction, user: discord.User):
+    """Admin command to check any user's email submission status"""
+    try:
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            # Get all submissions for the specified user
+            cursor = await db.execute('''
+                SELECT id, email_address, submitted_at, status, processed_at, admin_notes
+                FROM email_submissions 
+                WHERE discord_user_id = ?
+                ORDER BY submitted_at DESC
+            ''', (user.id,))
+            
+            submissions = await cursor.fetchall()
+            
+        embed = discord.Embed(
+            title=f"📧 Email Status for {user.display_name}",
+            description=f"User ID: {user.id}",
+            color=discord.Color.blue()
+        )
+        
+        if not submissions:
+            embed.add_field(
+                name="Status", 
+                value="❌ No email submissions found", 
+                inline=False
+            )
+        else:
+            for i, submission in enumerate(submissions):
+                sub_id, email, submitted_at, status, processed_at, admin_notes = submission
+                
+                status_emoji = "✅" if status == 'processed' else "⏳" if status == 'pending' else "❌"
+                
+                embed.add_field(
+                    name=f"Submission #{i+1} (ID: {sub_id})",
+                    value=f"**Email:** {email}\n"
+                          f"**Status:** {status_emoji} {status.title()}\n"
+                          f"**Submitted:** {submitted_at}\n" +
+                          (f"**Processed:** {processed_at}\n" if processed_at else "") +
+                          (f"**Notes:** {admin_notes}\n" if admin_notes else ""),
+                    inline=False
+                )
+        
+        await interaction.response.send_message(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in checkemail admin command: {e}")
+        await interaction.response.send_message("❌ An error occurred while checking email status.")
 
 # Web Interface with admin dashboard continues below...
 # All old prefix commands have been replaced with modern slash commands above
