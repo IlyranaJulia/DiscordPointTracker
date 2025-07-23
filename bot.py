@@ -1274,9 +1274,10 @@ class PointsBot(commands.Bot):
         if self.user:
             logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
             
-            # Set bot status for slash commands
+            # Set bot status for slash commands with explicit online status
             activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
-            await self.change_presence(activity=activity)
+            await self.change_presence(status=discord.Status.online, activity=activity)
+            logger.info("Bot presence set to online with activity status")
             
             # Sync slash commands
             try:
