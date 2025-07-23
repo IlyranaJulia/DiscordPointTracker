@@ -226,3 +226,34 @@ class PostgreSQLPointsDatabase:
         except Exception as e:
             logger.error(f"Error getting user analytics for {user_id}: {e}")
             return None
+    
+    async def get_email_submissions(self):
+        """Get all email submissions"""
+        try:
+            async with self.pool.acquire() as conn:
+                rows = await conn.fetch('''
+                    SELECT id, discord_user_id, discord_username, email_address, 
+                           submitted_at, status, processed_at, admin_notes
+                    FROM email_submissions 
+                    ORDER BY submitted_at DESC
+                ''')
+                return [tuple(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error getting email submissions: {e}")
+            return []
+    
+    async def execute_query(self, query: str, *args) -> List[Tuple]:
+        """Execute a query and return results"""
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.fetch(query, *args)
+                return [tuple(row) for row in result]
+        except Exception as e:
+            logger.error(f"Error executing query: {e}")
+            return []
+    
+    async def close(self):
+        """Close the database connection"""
+        if self.pool:
+            await self.pool.close()
+            self.pool = None

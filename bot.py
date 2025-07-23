@@ -977,84 +977,65 @@ def user_analytics():
 def get_email_submissions():
     """API endpoint to get all email submissions"""
     try:
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            async def fetch_submissions():
-                async with aiosqlite.connect('points.db') as db:
-                    # Get all submissions with updated usernames
-                    cursor = await db.execute('''
-                        SELECT id, discord_user_id, discord_username, email_address, 
-                               submitted_at, status, processed_at, admin_notes
-                        FROM email_submissions 
-                        ORDER BY submitted_at DESC
-                    ''')
-                    submissions = await cursor.fetchall()
-                    
-                    # Update usernames to current Discord names
-                    updated_submissions = []
-                    for submission in submissions:
-                        sub_id, user_id, old_username, email, submitted, status, processed, notes = submission
-                        
-                        # Try to get current Discord username
-                        current_username = old_username
-                        try:
-                            user = bot.get_user(user_id)
-                            if not user:
-                                user = await bot.fetch_user(user_id)
-                            if user:
-                                current_username = user.display_name
-                                # Update database with current username if different
-                                if current_username != old_username:
-                                    await db.execute('''
-                                        UPDATE email_submissions 
-                                        SET discord_username = ? 
-                                        WHERE id = ?
-                                    ''', (current_username, sub_id))
-                        except Exception as e:
-                            logger.debug(f"Could not fetch user {user_id}: {e}")
-                            # Keep the stored username or fallback to User ID format
-                            if not current_username or current_username.startswith('User '):
-                                current_username = f"User {user_id}"
-                        
-                        updated_submissions.append((sub_id, user_id, current_username, email, submitted, status, processed, notes))
-                    
-                    await db.commit()
-                    
-                    # Get stats
-                    stats_cursor = await db.execute('''
-                        SELECT 
-                            COUNT(*) as total,
-                            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                            SUM(CASE WHEN status = 'processed' THEN 1 ELSE 0 END) as processed
-                        FROM email_submissions
-                    ''')
-                    stats = await stats_cursor.fetchone()
-                    
-                    return updated_submissions, stats
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
             
-            submissions_data, stats_data = loop.run_until_complete(fetch_submissions())
+            # Get all email submissions from PostgreSQL
+            submissions_data = loop.run_until_complete(db.get_email_submissions())
             
             submissions = []
             for row in submissions_data:
+                # Get current Discord username for display
+                current_username = row[2]  # Default to stored username
+                try:
+                    user = bot.get_user(row[1])
+                    if not user:
+                        user = loop.run_until_complete(bot.fetch_user(row[1]))
+                    if user:
+                        current_username = user.display_name
+                except Exception as e:
+                    logger.debug(f"Could not fetch user {row[1]}: {e}")
+                    if not current_username or current_username.startswith('User '):
+                        current_username = f"User {row[1]}"
+                
                 submissions.append({
                     'id': row[0],
                     'discord_user_id': row[1],
-                    'discord_username': row[2],
+                    'discord_username': current_username,
                     'email_address': row[3],
-                    'submitted_at': row[4],
+                    'submitted_at': row[4].isoformat() if row[4] else None,
                     'status': row[5],
-                    'processed_at': row[6],
+                    'processed_at': row[6].isoformat() if row[6] else None,
                     'admin_notes': row[7]
                 })
             
+            # Get submission statistics
+            stats_query = '''
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'processed' THEN 1 ELSE 0 END) as processed
+                FROM email_submissions
+            '''
+            stats_result = loop.run_until_complete(db.execute_query(stats_query))
+            stats_data = stats_result[0] if stats_result else (0, 0, 0)
+            
             stats = {
-                'total': stats_data[0] if stats_data else 0,
-                'pending': stats_data[1] if stats_data else 0,
-                'processed': stats_data[2] if stats_data else 0
+                'total': stats_data[0],
+                'pending': stats_data[1],
+                'processed': stats_data[2]
             }
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
             
             return jsonify({
                 "success": True,
@@ -1086,22 +1067,25 @@ def process_email_submission():
         asyncio.set_event_loop(loop)
         
         try:
-            async def mark_processed():
-                async with aiosqlite.connect('points.db') as db:
-                    await db.execute('''
-                        UPDATE email_submissions 
-                        SET status = 'processed', processed_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                    ''', (submission_id,))
-                    await db.commit()
-                    return True
+            # Use PostgreSQL database for processing
+            from database_postgresql import PostgreSQLPointsDatabase
+            db = PostgreSQLPointsDatabase()
             
-            success = loop.run_until_complete(mark_processed())
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
             
-            if success:
-                return jsonify({"success": True, "message": "Email submission marked as processed"})
-            else:
-                return jsonify({"success": False, "error": "Failed to update submission"})
+            # Mark submission as processed
+            update_query = '''
+                UPDATE email_submissions 
+                SET status = 'processed', processed_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+            '''
+            result = loop.run_until_complete(db.execute_query(update_query, submission_id))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"success": True, "message": "Email submission marked as processed"})
                 
         finally:
             loop.close()
@@ -1127,18 +1111,21 @@ def delete_email_submission():
         asyncio.set_event_loop(loop)
         
         try:
-            async def delete_submission():
-                async with aiosqlite.connect('points.db') as db:
-                    await db.execute('DELETE FROM email_submissions WHERE id = ?', (submission_id,))
-                    await db.commit()
-                    return True
+            # Use PostgreSQL database for deletion
+            from database_postgresql import PostgreSQLPointsDatabase
+            db = PostgreSQLPointsDatabase()
             
-            success = loop.run_until_complete(delete_submission())
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
             
-            if success:
-                return jsonify({"success": True, "message": "Email submission deleted"})
-            else:
-                return jsonify({"success": False, "error": "Failed to delete submission"})
+            # Delete submission
+            delete_query = 'DELETE FROM email_submissions WHERE id = $1'
+            result = loop.run_until_complete(db.execute_query(delete_query, submission_id))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"success": True, "message": "Email submission deleted"})
                 
         finally:
             loop.close()
@@ -1159,17 +1146,18 @@ def export_email_submissions():
         asyncio.set_event_loop(loop)
         
         try:
-            async def fetch_all_submissions():
-                async with aiosqlite.connect('points.db') as db:
-                    cursor = await db.execute('''
-                        SELECT discord_user_id, discord_username, email_address, 
-                               submitted_at, status, processed_at, admin_notes
-                        FROM email_submissions 
-                        ORDER BY submitted_at DESC
-                    ''')
-                    return await cursor.fetchall()
+            # Use PostgreSQL database for export
+            from database_postgresql import PostgreSQLPointsDatabase
+            db = PostgreSQLPointsDatabase()
             
-            submissions = loop.run_until_complete(fetch_all_submissions())
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get all submissions for export
+            submissions = loop.run_until_complete(db.get_email_submissions())
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
             
             # Create CSV content
             output = StringIO()
@@ -1209,13 +1197,21 @@ def clear_processed_emails():
         asyncio.set_event_loop(loop)
         
         try:
-            async def clear_processed():
-                async with aiosqlite.connect('points.db') as db:
-                    cursor = await db.execute('DELETE FROM email_submissions WHERE status = "processed"')
-                    await db.commit()
-                    return cursor.rowcount if hasattr(cursor, 'rowcount') else 0
+            # Use PostgreSQL database
+            from database_postgresql import PostgreSQLPointsDatabase
+            db = PostgreSQLPointsDatabase()
             
-            deleted_count = loop.run_until_complete(clear_processed())
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Delete processed emails
+            delete_query = "DELETE FROM email_submissions WHERE status = 'processed'"
+            result = loop.run_until_complete(db.execute_query(delete_query))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            deleted_count = 0  # PostgreSQL doesn't easily return row count from delete
             
             return jsonify({
                 "success": True, 
@@ -1378,63 +1374,49 @@ bot = PointsBot()
 # Function to store user email (for the privacy slash command)
 async def store_user_email(user_id: int, email: str):
     """Store user email in database - only one pending submission per user"""
-    async with aiosqlite.connect(bot.db.db_path) as db:
-        # Create table if not exists
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS email_submissions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                discord_user_id INTEGER NOT NULL,
-                discord_username TEXT NOT NULL,
-                email_address TEXT NOT NULL,
-                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'pending',
-                processed_at TIMESTAMP,
-                admin_notes TEXT
-            )
-        ''')
-        
-        # Get user info to store proper username
-        user = bot.get_user(user_id)
-        if not user:
-            try:
-                user = await bot.fetch_user(user_id)
-            except:
-                pass
-        
-        username = user.display_name if user else f"User {user_id}"
-        
-        # Check if user already has ANY email submission (pending or processed)
-        cursor = await db.execute('''
-            SELECT id, status FROM email_submissions 
-            WHERE discord_user_id = ?
-            ORDER BY submitted_at DESC LIMIT 1
-        ''', (user_id,))
-        
-        existing = await cursor.fetchone()
-        
-        if existing:
-            submission_id, status = existing
-            if status == 'pending':
-                # Update existing pending submission
-                await db.execute('''
-                    UPDATE email_submissions 
-                    SET email_address = ?, discord_username = ?, submitted_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                ''', (email, username, submission_id))
-                logger.info(f"Updated existing pending email submission for user {user_id}")
-            else:
-                # User already has a processed submission - do not allow new ones
-                logger.info(f"User {user_id} already has a processed submission - blocking new submission")
-                raise ValueError("ALREADY_PROCESSED")
-        else:
-            # Create first submission for this user
-            await db.execute('''
-                INSERT INTO email_submissions (discord_user_id, discord_username, email_address)
-                VALUES (?, ?, ?)
-            ''', (user_id, username, email))
-            logger.info(f"Created first email submission for user {user_id}")
-        
-        await db.commit()
+    # Use the bot's PostgreSQL database connection
+    await bot.db.initialize()
+    
+    # Get user info to store proper username
+    user = bot.get_user(user_id)
+    if not user:
+        try:
+            user = await bot.fetch_user(user_id)
+        except:
+            pass
+    
+    username = user.display_name if user else f"User {user_id}"
+    
+    # Check if user already has ANY email submission (pending or processed)
+    existing_query = '''
+        SELECT id, status FROM email_submissions 
+        WHERE discord_user_id = $1
+        ORDER BY submitted_at DESC LIMIT 1
+    '''
+    existing_result = await bot.db.execute_query(existing_query, user_id)
+    existing = existing_result[0] if existing_result else None
+    
+    if existing:
+        submission_id, status = existing
+        if status == 'processed':
+            raise ValueError("You already have a processed email submission and cannot submit a new one.")
+        elif status == 'pending':
+            # Update existing pending submission
+            update_query = '''
+                UPDATE email_submissions 
+                SET email_address = $1, discord_username = $2, submitted_at = CURRENT_TIMESTAMP
+                WHERE id = $3
+            '''
+            await bot.db.execute_query(update_query, email, username, submission_id)
+            return f"updated_existing_{submission_id}"
+    
+    # Insert new submission
+    insert_query = '''
+        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, status)
+        VALUES ($1, $2, $3, 'pending')
+    '''
+    await bot.db.execute_query(insert_query, user_id, username, email)
+    return "new_submission"
 
 # Slash Commands
 @bot.tree.command(name="mypoints", description="Check your points balance (sent privately)")
@@ -1534,14 +1516,15 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         return
 
     try:
-        # Check if user already has a pending submission
-        async with aiosqlite.connect(bot.db.db_path) as db:
-            cursor = await db.execute('''
-                SELECT email_address, status FROM email_submissions 
-                WHERE discord_user_id = ?
-                ORDER BY submitted_at DESC LIMIT 1
-            ''', (interaction.user.id,))
-            existing = await cursor.fetchone()
+        # Check if user already has a pending submission using PostgreSQL
+        await bot.db.initialize()
+        existing_query = '''
+            SELECT email_address, status FROM email_submissions 
+            WHERE discord_user_id = $1
+            ORDER BY submitted_at DESC LIMIT 1
+        '''
+        existing_result = await bot.db.execute_query(existing_query, interaction.user.id)
+        existing = existing_result[0] if existing_result else None
         
         # Store the email (will update if pending, or raise error if processed)
         await store_user_email(interaction.user.id, email.strip())
