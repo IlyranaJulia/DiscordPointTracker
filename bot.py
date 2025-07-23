@@ -491,8 +491,8 @@ def dashboard():
                 let html = '<div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">';
                 html += '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">';
                 html += '<label style="font-weight: bold; margin-right: 10px;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"> Select All</label>';
-                html += '<button onclick="bulkAction(\'process\')" style="background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">✓ Mark Selected as Processed</button>';
-                html += '<button onclick="bulkAction(\'delete\')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Delete Selected</button>';
+                html += '<button onclick="bulkAction(' + "'process'" + ')" style="background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">✓ Mark Selected as Processed</button>';
+                html += '<button onclick="bulkAction(' + "'delete'" + ')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">🗑️ Delete Selected</button>';
                 html += '<span id="selected-count" style="margin-left: 10px; font-size: 12px; color: #666;">0 selected</span>';
                 html += '</div></div>';
                 
