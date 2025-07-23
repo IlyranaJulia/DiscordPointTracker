@@ -1889,9 +1889,10 @@ EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 # Flask web server runner
 def run_flask():
-    # Use PORT environment variable for Cloud Run deployment, fallback to 5000 for local development
+    # Use PORT environment variable for Cloud Run deployment, fallback to 5000 for Replit
     port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # For Replit, always use 0.0.0.0 to make it accessible externally
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
 
 def main():
     """Main application entry point with enhanced error handling and proper startup"""
