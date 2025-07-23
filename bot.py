@@ -302,6 +302,16 @@ def dashboard():
                 // Update nav
                 document.querySelectorAll('.nav a').forEach(el => el.classList.remove('active'));
                 event.target.classList.add('active');
+                
+                // Load data for the selected section
+                if (section === 'emails') {
+                    loadEmailSubmissions();
+                } else if (section === 'database') {
+                    loadTransactions();
+                    loadDatabaseStats();
+                } else if (section === 'achievements') {
+                    loadAchievements();
+                }
             }
             
             function refreshStats() {
@@ -317,8 +327,9 @@ def dashboard():
                 });
             }
             
-            // Load initial stats
+            // Load initial stats and email submissions on page load
             refreshStats();
+            loadEmailSubmissions();
             
             function loadTransactions() {
                 fetch('/api/recent_transactions')
