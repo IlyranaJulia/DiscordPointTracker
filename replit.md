@@ -37,12 +37,21 @@ The application follows a modular architecture with clear separation of concerns
 - **Port Configuration**: Updated Flask server to use PORT environment variable for Cloud Run compatibility
 - **Replit Deployment Ready**: Application configured for proper Replit deployment with health checks
 
+### Email System Fixes Applied (2025-07-23)
+- **Duplicate Submission Prevention**: Users can now only have one email submission (prevents database clutter)
+- **Smart Update Logic**: If user has pending submission, new email updates existing entry instead of creating duplicate
+- **Processed Submission Protection**: Users with already processed emails cannot submit new ones
+- **Username Synchronization**: Dashboard automatically fetches and displays current Discord usernames instead of user IDs
+- **Real-time Username Updates**: Database usernames are refreshed when dashboard loads to show current Discord names
+- **Enhanced User Feedback**: Clear messages inform users whether they're updating existing or creating new submission
+- **Database Cleanup**: Removed existing duplicate entries and implemented strict one-submission-per-user policy
+
 ### Bot Features
 - **Enhanced User Commands**: /pipihelp (renamed from /help), /mypoints, /pointsboard, /submitemail, /updateemail, /myemail
-- **Admin Slash Commands**: /status command for administrators with proper permission checks
-- **Automated Command Sync**: Bot successfully syncs 7 slash commands on startup
+- **Admin Slash Commands**: /status, /refreshpresence commands for administrators with proper permission checks
+- **Automated Command Sync**: Bot successfully syncs 8 slash commands on startup
 - **Modern Discord Integration**: Full compatibility with Discord's latest command interface standards
-- **Web Dashboard**: Fully functional admin panel on port 5000
+- **Web Dashboard**: Fully functional admin panel on port 5000 with real Discord usernames
 - **Production Ready**: All deployment endpoints verified working with proper HTTP status codes
 
 ## Key Components

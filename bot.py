@@ -1401,14 +1401,11 @@ async def store_user_email(user_id: int, email: str):
                     SET email_address = ?, discord_username = ?, submitted_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 ''', (email, username, submission_id))
-                logger.info(f"Updated existing email submission for user {user_id}")
+                logger.info(f"Updated existing pending email submission for user {user_id}")
             else:
-                # User had a processed submission, create a new one (rare case)
-                await db.execute('''
-                    INSERT INTO email_submissions (discord_user_id, discord_username, email_address)
-                    VALUES (?, ?, ?)
-                ''', (user_id, username, email))
-                logger.info(f"Created new email submission for user {user_id} (previous was processed)")
+                # User already has a processed submission - do not allow new ones
+                logger.info(f"User {user_id} already has a processed submission - blocking new submission")
+                raise ValueError("ALREADY_PROCESSED")
         else:
             # Create first submission for this user
             await db.execute('''
@@ -1520,20 +1517,28 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         # Check if user already has a pending submission
         async with aiosqlite.connect(bot.db.db_path) as db:
             cursor = await db.execute('''
-                SELECT email_address FROM email_submissions 
-                WHERE discord_user_id = ? AND status = 'pending'
+                SELECT email_address, status FROM email_submissions 
+                WHERE discord_user_id = ?
+                ORDER BY submitted_at DESC LIMIT 1
             ''', (interaction.user.id,))
             existing = await cursor.fetchone()
         
-        # Store the email (will update if existing)
+        # Store the email (will update if pending, or raise error if processed)
         await store_user_email(interaction.user.id, email.strip())
 
         if existing:
-            old_email = existing[0]
-            await interaction.response.send_message(
-                f"✅ Your email has been updated from `{old_email}` to `{email.strip()}`",
-                ephemeral=True
-            )
+            old_email, status = existing
+            if status == 'pending':
+                await interaction.response.send_message(
+                    f"✅ Your email has been updated from `{old_email}` to `{email.strip()}`",
+                    ephemeral=True
+                )
+            else:
+                # This shouldn't happen due to the new logic, but just in case
+                await interaction.response.send_message(
+                    "✅ Your email has been successfully submitted, thank you!",
+                    ephemeral=True
+                )
         else:
             await interaction.response.send_message(
                 "✅ Your email has been successfully submitted, thank you!",
@@ -1542,12 +1547,25 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
 
         # Also send a DM so they have a copy
         try:
-            action_word = "updated" if existing else "received"
+            action_word = "updated" if existing and existing[1] == 'pending' else "received"
             await interaction.user.send(f"✅ I have {action_word} your email: {email.strip()}")
         except discord.Forbidden:
             # Could not send DM (maybe DMs are closed)
             pass
             
+    except ValueError as e:
+        if str(e) == "ALREADY_PROCESSED":
+            await interaction.response.send_message(
+                "❌ You have already submitted an email that has been processed by admin. "
+                "Each user can only submit one email for verification.",
+                ephemeral=True
+            )
+        else:
+            logger.error(f"ValueError in submitemail slash command: {e}")
+            await interaction.response.send_message(
+                "❌ An error occurred while submitting your email. Please try again later.",
+                ephemeral=True
+            )
     except Exception as e:
         logger.error(f"Error in submitemail slash command: {e}")
         await interaction.response.send_message(
