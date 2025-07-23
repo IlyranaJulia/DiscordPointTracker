@@ -1,0 +1,65 @@
+Why Your Bot Still Goes Offline (Even with UptimeRobot Ping)
+
+You're using UptimeRobot to ping https://discord-point-tracker-ilyranajulia.replit.app every 5 minutes — this does keep the Replit web server awake, but:
+
+It does NOT guarantee that your Discord bot is running.
+✅ The Root Problem
+
+UptimeRobot only sends HTTP requests (pings) to your Replit web server, usually a Flask app.
+
+If your code does not also run bot.run(TOKEN) at the same time, your bot will appear offline in Discord, even though your .replit.app is "Up".
+
+✅ Correct Architecture for Replit Discord Bot with Flask Ping
+
+Here’s the recommended structure to keep both Flask (for pinging) and your bot running:
+
+from flask import Flask
+import threading
+import discord
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "I'm alive"
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+
+# Start Flask server in a separate thread
+threading.Thread(target=run_flask).start()
+
+# Now start the Discord bot
+intents = discord.Intents.default()
+bot = discord.Client(intents=intents)
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+
+bot.run(os.getenv("BOT_TOKEN"))
+🔧 How to Confirm Your Bot Is Running
+
+Check that your main.py or bot.py includes both:
+run_flask() (to keep Replit awake via ping)
+bot.run(TOKEN) (to connect to Discord)
+Make sure bot.run() is not blocked by Flask
+That’s why we run Flask in a new thread with threading.Thread(...)
+Check your Replit console logs — you should see:
+Logged in as pipi-bot#6532
+✅ What to Do Now
+
+Open your Replit file (likely main.py)
+Confirm you are starting both Flask and your Discord bot as shown above
+Click Run in Replit and check console output
+Ensure your Discord token is set properly via Secrets
+Key: BOT_TOKEN
+Value: your actual Discord bot token
+📌 Summary
+
+Action	Result
+Ping Flask site via UptimeRobot	✅ Keeps Replit project alive
+Forget to run bot.run()	❌ Bot appears offline
+Flask blocks bot	❌ Bot never starts
+Use threading to run Flask	✅ Bot and Flask can run together

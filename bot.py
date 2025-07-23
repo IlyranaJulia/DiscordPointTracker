@@ -1299,6 +1299,9 @@ class PointsBot(commands.Bot):
         logger.info("Bot is starting up...")
         await self.db.initialize()
         
+        # Start periodic presence refresh task
+        self.presence_refresh_task = self.loop.create_task(self.periodic_presence_refresh())
+        
     async def on_ready(self):
         """Called when the bot has successfully connected to Discord"""
         if self.user:
@@ -1351,6 +1354,23 @@ class PointsBot(commands.Bot):
         else:
             logger.error(f"Unexpected error in command {ctx.command}: {error}")
             await ctx.send("❌ An unexpected error occurred. Please try again later.")
+    
+    async def periodic_presence_refresh(self):
+        """Periodically refresh bot presence to ensure it stays online"""
+        await self.wait_until_ready()
+        
+        while not self.is_closed():
+            try:
+                activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
+                await self.change_presence(status=discord.Status.online, activity=activity)
+                logger.debug("Periodic presence refresh completed")
+                
+                # Refresh every 30 minutes to prevent appearing offline
+                await asyncio.sleep(1800)  # 30 minutes
+                
+            except Exception as e:
+                logger.error(f"Error in periodic presence refresh: {e}")
+                await asyncio.sleep(300)  # Retry after 5 minutes on error
 
 # Initialize bot
 bot = PointsBot()
