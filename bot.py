@@ -876,16 +876,16 @@ def database_stats():
             # Close database connection
             loop.run_until_complete(db.close())
             
-            # Format response with real data
+            # Format response with actual database data
             return jsonify({
                 "tables": {
-                    "points": {"rows": stats.get('total_users', 0)},
-                    "transactions": {"rows": stats.get('total_transactions', 0)},
-                    "achievements": {"rows": stats.get('total_achievements', 0)},
-                    "user_stats": {"rows": stats.get('total_users', 0)}
+                    "points": {"rows": stats['tables']['points']['rows']},
+                    "transactions": {"rows": stats['tables']['transactions']['rows']},
+                    "achievements": {"rows": stats['tables']['achievements']['rows']},
+                    "user_stats": {"rows": stats['tables']['points']['rows']}  # Same as points table
                 },
-                "total_points": stats.get('total_points', 0),
-                "most_active_user": stats.get('most_active_user')
+                "total_points": stats['total_points'],
+                "most_active_user": None  # Can add this later if needed
             })
             
         finally:
@@ -1039,18 +1039,20 @@ def user_analytics():
             loop.run_until_complete(db.close())
             
             if analytics_data:
+                # analytics_data is a tuple: (total_points_earned, total_points_spent, highest_balance, transactions_count, achievements_count, first_activity, last_activity)
                 return jsonify({
                     "success": True,
                     "analytics": {
                         "user_id": str(user_id),
-                        "current_balance": analytics_data.get('current_balance', 0),
-                        "total_earned": analytics_data.get('total_earned', 0),
-                        "total_spent": analytics_data.get('total_spent', 0),
-                        "highest_balance": analytics_data.get('highest_balance', 0),
-                        "transaction_count": analytics_data.get('transaction_count', 0),
-                        "rank": analytics_data.get('rank', 'N/A'),
-                        "achievements_count": analytics_data.get('achievements_count', 0),
-                        "last_activity": analytics_data.get('last_activity', 'Never')
+                        "current_balance": 0,  # Need to get from points table separately
+                        "total_earned": analytics_data[0] or 0,
+                        "total_spent": analytics_data[1] or 0,
+                        "highest_balance": analytics_data[2] or 0,
+                        "transaction_count": analytics_data[3] or 0,
+                        "achievements_count": analytics_data[4] or 0,
+                        "first_activity": str(analytics_data[5]) if analytics_data[5] else 'Never',
+                        "last_activity": str(analytics_data[6]) if analytics_data[6] else 'Never',
+                        "rank": 'N/A'  # Can calculate separately if needed
                     }
                 })
             else:
