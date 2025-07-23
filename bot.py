@@ -984,7 +984,7 @@ def get_email_submissions():
         try:
             async def fetch_submissions():
                 async with aiosqlite.connect('points.db') as db:
-                    # Get all submissions
+                    # Get all submissions with updated usernames
                     cursor = await db.execute('''
                         SELECT id, discord_user_id, discord_username, email_address, 
                                submitted_at, status, processed_at, admin_notes
@@ -992,6 +992,36 @@ def get_email_submissions():
                         ORDER BY submitted_at DESC
                     ''')
                     submissions = await cursor.fetchall()
+                    
+                    # Update usernames to current Discord names
+                    updated_submissions = []
+                    for submission in submissions:
+                        sub_id, user_id, old_username, email, submitted, status, processed, notes = submission
+                        
+                        # Try to get current Discord username
+                        current_username = old_username
+                        try:
+                            user = bot.get_user(user_id)
+                            if not user:
+                                user = await bot.fetch_user(user_id)
+                            if user:
+                                current_username = user.display_name
+                                # Update database with current username if different
+                                if current_username != old_username:
+                                    await db.execute('''
+                                        UPDATE email_submissions 
+                                        SET discord_username = ? 
+                                        WHERE id = ?
+                                    ''', (current_username, sub_id))
+                        except Exception as e:
+                            logger.debug(f"Could not fetch user {user_id}: {e}")
+                            # Keep the stored username or fallback to User ID format
+                            if not current_username or current_username.startswith('User '):
+                                current_username = f"User {user_id}"
+                        
+                        updated_submissions.append((sub_id, user_id, current_username, email, submitted, status, processed, notes))
+                    
+                    await db.commit()
                     
                     # Get stats
                     stats_cursor = await db.execute('''
@@ -1003,7 +1033,7 @@ def get_email_submissions():
                     ''')
                     stats = await stats_cursor.fetchone()
                     
-                    return submissions, stats
+                    return updated_submissions, stats
             
             submissions_data, stats_data = loop.run_until_complete(fetch_submissions())
             
@@ -1327,7 +1357,7 @@ bot = PointsBot()
 
 # Function to store user email (for the privacy slash command)
 async def store_user_email(user_id: int, email: str):
-    """Store user email in database"""
+    """Store user email in database - only one pending submission per user"""
     async with aiosqlite.connect(bot.db.db_path) as db:
         # Create table if not exists
         await db.execute('''
@@ -1343,30 +1373,49 @@ async def store_user_email(user_id: int, email: str):
             )
         ''')
         
-        # Check if user already submitted an email
+        # Get user info to store proper username
+        user = bot.get_user(user_id)
+        if not user:
+            try:
+                user = await bot.fetch_user(user_id)
+            except:
+                pass
+        
+        username = user.display_name if user else f"User {user_id}"
+        
+        # Check if user already has ANY email submission (pending or processed)
         cursor = await db.execute('''
-            SELECT id FROM email_submissions 
-            WHERE discord_user_id = ? AND status = 'pending'
+            SELECT id, status FROM email_submissions 
+            WHERE discord_user_id = ?
+            ORDER BY submitted_at DESC LIMIT 1
         ''', (user_id,))
         
         existing = await cursor.fetchone()
         
         if existing:
-            # Update existing submission
-            await db.execute('''
-                UPDATE email_submissions 
-                SET email_address = ?, submitted_at = CURRENT_TIMESTAMP
-                WHERE discord_user_id = ? AND status = 'pending'
-            ''', (email, user_id))
+            submission_id, status = existing
+            if status == 'pending':
+                # Update existing pending submission
+                await db.execute('''
+                    UPDATE email_submissions 
+                    SET email_address = ?, discord_username = ?, submitted_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (email, username, submission_id))
+                logger.info(f"Updated existing email submission for user {user_id}")
+            else:
+                # User had a processed submission, create a new one (rare case)
+                await db.execute('''
+                    INSERT INTO email_submissions (discord_user_id, discord_username, email_address)
+                    VALUES (?, ?, ?)
+                ''', (user_id, username, email))
+                logger.info(f"Created new email submission for user {user_id} (previous was processed)")
         else:
-            # Create new submission
-            user = bot.get_user(user_id)
-            username = user.display_name if user else f"User {user_id}"
-            
+            # Create first submission for this user
             await db.execute('''
                 INSERT INTO email_submissions (discord_user_id, discord_username, email_address)
                 VALUES (?, ?, ?)
             ''', (user_id, username, email))
+            logger.info(f"Created first email submission for user {user_id}")
         
         await db.commit()
 
@@ -1468,18 +1517,33 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         return
 
     try:
-        # Store the email
+        # Check if user already has a pending submission
+        async with aiosqlite.connect(bot.db.db_path) as db:
+            cursor = await db.execute('''
+                SELECT email_address FROM email_submissions 
+                WHERE discord_user_id = ? AND status = 'pending'
+            ''', (interaction.user.id,))
+            existing = await cursor.fetchone()
+        
+        # Store the email (will update if existing)
         await store_user_email(interaction.user.id, email.strip())
 
-        # Ephemeral confirmation
-        await interaction.response.send_message(
-            "✅ Your email has been successfully submitted, thank you!",
-            ephemeral=True
-        )
+        if existing:
+            old_email = existing[0]
+            await interaction.response.send_message(
+                f"✅ Your email has been updated from `{old_email}` to `{email.strip()}`",
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "✅ Your email has been successfully submitted, thank you!",
+                ephemeral=True
+            )
 
         # Also send a DM so they have a copy
         try:
-            await interaction.user.send(f"✅ I have received your email: {email}")
+            action_word = "updated" if existing else "received"
+            await interaction.user.send(f"✅ I have {action_word} your email: {email.strip()}")
         except discord.Forbidden:
             # Could not send DM (maybe DMs are closed)
             pass
