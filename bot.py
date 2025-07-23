@@ -1274,10 +1274,25 @@ class PointsBot(commands.Bot):
         if self.user:
             logger.info(f'Bot is ready! Logged in as {self.user} (ID: {self.user.id})')
             
-            # Set bot status for slash commands with explicit online status
-            activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
-            await self.change_presence(status=discord.Status.online, activity=activity)
-            logger.info("Bot presence set to online with activity status")
+            # Multiple attempts to set presence status
+            try:
+                # First attempt - basic online status
+                await self.change_presence(status=discord.Status.online)
+                logger.info("Set basic online status")
+                
+                # Wait a moment then set with activity
+                await asyncio.sleep(2)
+                activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
+                await self.change_presence(status=discord.Status.online, activity=activity)
+                logger.info("Bot presence set to online with activity status")
+                
+                # Additional attempt to force presence update
+                await asyncio.sleep(1)
+                await self.change_presence(status=discord.Status.online, activity=activity)
+                logger.info("Presence update confirmed")
+                
+            except Exception as e:
+                logger.error(f"Error setting bot presence: {e}")
             
             # Sync slash commands
             try:
@@ -1659,6 +1674,41 @@ async def status_slash(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in status slash command: {e}")
         await interaction.response.send_message("❌ An error occurred while fetching bot status.")
+
+@bot.tree.command(name="refreshpresence", description="Force refresh bot online status")
+@app_commands.default_permissions(administrator=True)
+async def refresh_presence_slash(interaction: discord.Interaction):
+    """Force refresh bot presence status (Admin only)"""
+    try:
+        await interaction.response.defer()
+        
+        # Force multiple presence updates to ensure Discord recognizes the online status
+        await bot.change_presence(status=discord.Status.online)
+        await asyncio.sleep(1)
+        
+        activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
+        await bot.change_presence(status=discord.Status.online, activity=activity)
+        await asyncio.sleep(1)
+        
+        # Final confirmation
+        await bot.change_presence(status=discord.Status.online, activity=activity)
+        
+        logger.info("Manual presence refresh executed")
+        
+        embed = discord.Embed(
+            title="✅ Presence Refreshed",
+            description="Bot presence status has been manually updated to **Online**",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Action Taken", value="Multiple presence updates sent to Discord", inline=False)
+        embed.add_field(name="Status", value="🟢 Online", inline=True)
+        embed.add_field(name="Activity", value="Playing: /pipihelp for commands", inline=True)
+        
+        await interaction.followup.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in refresh_presence slash command: {e}")
+        await interaction.followup.send("❌ An error occurred while refreshing bot presence.")
 
 # Web Interface with admin dashboard continues below...
 # All old prefix commands have been replaced with modern slash commands above
