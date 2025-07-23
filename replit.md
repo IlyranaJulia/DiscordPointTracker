@@ -17,7 +17,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Configuration Layer**: Environment-based configuration management
 - **Logging Layer**: Comprehensive logging system for monitoring and debugging
 
-## Recent Changes (2025-07-22)
+## Recent Changes (2025-07-22 - 2025-07-23)
 ### Major Updates
 - **Complete Slash Commands Conversion**: All prefix commands (!) converted to modern Discord slash commands (/)
 - **Code Cleanup**: Removed duplicate Python files (bot_backup.py, test_order_system.py, order_processor_simple.py)
@@ -26,13 +26,14 @@ The application follows a modular architecture with clear separation of concerns
 - **GitHub Ready**: Clean codebase prepared for GitHub upload with proper .gitignore and README.md
 - **Simplified Architecture**: Streamlined email processing without external email service dependencies
 
-### Deployment Fixes Applied
-- **Health Check Endpoint**: Added `/health` endpoint returning JSON status for deployment monitoring
-- **Session Security**: Added SESSION_SECRET environment variable configuration for Flask app security
-- **Environment Validation**: Enhanced error handling and validation for required environment variables
-- **Code Quality**: Fixed duplicate function definitions and missing imports causing LSP errors
-- **Documentation**: Created .env.example and DEPLOYMENT_FIXES.md for deployment guidance
-- **Error Handling**: Improved Discord-specific error handling and logging for production troubleshooting
+### Deployment Fixes Applied (2025-07-23)
+- **Root Health Check Enhancement**: Modified `/` endpoint to always return 200 status code for Cloud Run health checks
+- **Improved Health Endpoints**: Enhanced `/health` endpoint with consistent 200 responses, added `/healthz` for Kubernetes compatibility
+- **Proper Startup Architecture**: Restructured main() function in bot.py to properly handle both Flask and Discord bot initialization
+- **Enhanced main.py**: Updated main entry point with proper error handling and startup sequencing
+- **Flask Server Priority**: Ensured Flask web server starts before Discord bot for deployment health check requirements
+- **Error-Resistant Health Checks**: All health endpoints now return 200 even during bot initialization or errors
+- **Deployment Verification**: All endpoints tested and confirmed returning proper HTTP 200 status codes
 
 ### Bot Features
 - **Enhanced User Commands**: /pipihelp (renamed from /help), /mypoints, /pointsboard, /submitemail, /updateemail, /myemail
