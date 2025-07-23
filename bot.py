@@ -1793,21 +1793,20 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
 async def myemail_slash(interaction: discord.Interaction):
     """Check your current email submission status - always fetches fresh data"""
     try:
-        # Always create fresh database connection to avoid any caching issues
-        async with aiosqlite.connect(bot.db.db_path) as db:
-            # Force fresh data by checking all user submissions first
-            logger.info(f"Checking email status for user {interaction.user.id}")
-            
+        # Get email submission data using PostgreSQL
+        logger.info(f"Checking email status for user {interaction.user.id}")
+        
+        # Use the existing PostgreSQL database connection
+        async with bot.db.pool.acquire() as conn:
             # Get all submissions for this user to see the full picture
-            cursor = await db.execute('''
+            submissions = await conn.fetch('''
                 SELECT id, email_address, submitted_at, status, processed_at
                 FROM email_submissions 
-                WHERE discord_user_id = ?
+                WHERE discord_user_id = $1
                 ORDER BY submitted_at DESC
-            ''', (interaction.user.id,))
+            ''', interaction.user.id)
             
-            all_submissions = await cursor.fetchall()
-            submission_list = list(all_submissions)
+            submission_list = [tuple(row) for row in submissions]
             logger.info(f"User {interaction.user.id} has {len(submission_list)} total submissions in database")
             
             # Get the most recent submission

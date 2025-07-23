@@ -262,6 +262,57 @@ class PostgreSQLPointsDatabase:
             else:
                 return None
     
+    async def get_total_users(self) -> int:
+        """Get total number of users"""
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.fetchval('SELECT COUNT(*) FROM points')
+                return result if result else 0
+        except Exception as e:
+            logger.error(f"Error getting total users: {e}")
+            return 0
+    
+    async def get_total_points(self) -> int:
+        """Get total points across all users"""
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.fetchval('SELECT SUM(balance) FROM points')
+                return result if result else 0
+        except Exception as e:
+            logger.error(f"Error getting total points: {e}")
+            return 0
+    
+    async def get_database_stats(self) -> dict:
+        """Get comprehensive database statistics"""
+        try:
+            async with self.pool.acquire() as conn:
+                # Get table row counts
+                points_count = await conn.fetchval('SELECT COUNT(*) FROM points')
+                transactions_count = await conn.fetchval('SELECT COUNT(*) FROM transactions')
+                achievements_count = await conn.fetchval('SELECT COUNT(*) FROM achievements')
+                
+                # Get total points
+                total_points = await conn.fetchval('SELECT SUM(balance) FROM points')
+                
+                return {
+                    'tables': {
+                        'points': {'rows': points_count or 0},
+                        'transactions': {'rows': transactions_count or 0},
+                        'achievements': {'rows': achievements_count or 0}
+                    },
+                    'total_points': total_points or 0
+                }
+        except Exception as e:
+            logger.error(f"Error getting database stats: {e}")
+            return {
+                'tables': {
+                    'points': {'rows': 0},
+                    'transactions': {'rows': 0},
+                    'achievements': {'rows': 0}
+                },
+                'total_points': 0
+            }
+    
     async def close(self):
         """Close the database connection"""
         if self.pool:
