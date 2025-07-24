@@ -1612,6 +1612,9 @@ async def mypoints_slash(interaction: discord.Interaction):
 async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
     """Show the points leaderboard"""
     try:
+        # Acknowledge the interaction immediately to prevent timeout
+        await interaction.response.defer()
+        
         # Validate limit
         if limit <= 0:
             limit = 10
@@ -1621,7 +1624,7 @@ async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
         top_users = await bot.db.get_leaderboard(limit)
         
         if not top_users:
-            await interaction.response.send_message("📊 No users found in the leaderboard.")
+            await interaction.followup.send("📊 No users found in the leaderboard.")
             return
             
         embed = discord.Embed(
@@ -1659,7 +1662,7 @@ async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
             description += f"{medal} **{username}** - {balance:,} points\n"
             
         embed.description = description
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
         
     except Exception as e:
         logger.error(f"Error in pointsboard slash command: {e}")
