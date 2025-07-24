@@ -1599,7 +1599,13 @@ async def mypoints_slash(interaction: discord.Interaction):
         
     except Exception as e:
         logger.error(f"Error in mypoints slash command: {e}")
-        await interaction.response.send_message("❌ An error occurred while checking your points balance.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while checking your points balance.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while checking your points balance.", ephemeral=True)
+        except Exception as follow_error:
+            logger.error(f"Could not send error message: {follow_error}")
 
 @bot.tree.command(name="pointsboard", description="Show the points leaderboard")
 @app_commands.describe(limit="Number of users to show (max 25)")
@@ -1657,7 +1663,13 @@ async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
         
     except Exception as e:
         logger.error(f"Error in pointsboard slash command: {e}")
-        await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.")
+            else:
+                await interaction.followup.send("❌ An error occurred while fetching the leaderboard.")
+        except Exception as follow_error:
+            logger.error(f"Could not send error message: {follow_error}")
 
 @bot.tree.command(name="submitemail", description="Submit your email address (visible only to you)")
 @app_commands.describe(email="Your email address")
