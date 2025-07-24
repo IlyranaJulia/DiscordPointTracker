@@ -19,11 +19,12 @@ The application follows a modular architecture with clear separation of concerns
 
 ## Recent Changes (2025-07-22 - 2025-07-23)
 
-### Database Migration to PostgreSQL (2025-07-23)
+### Database Migration to PostgreSQL (2025-07-23 to 2025-07-24)
 - **Database Persistence Issue Resolved**: SQLite data was being lost on Replit refreshes
 - **PostgreSQL Implementation**: Created new database layer with full async support using asyncpg
-- **Data Migration**: Successfully migrated all 17 email submissions and user data to permanent PostgreSQL storage
-- **Enhanced Reliability**: User data now persists permanently across bot restarts and Replit environment refreshes
+- **Critical User ID Fix (2025-07-24)**: Resolved Discord user ID precision loss by changing schema from BIGINT to TEXT, preventing ID truncation (e.g., 495044225994326033 was stored as 495044225994326000)
+- **Email Data Recovery (2025-07-24)**: Successfully recovered all 17 email submissions from SQLite backup after accidental deletion during schema migration
+- **Enhanced Reliability**: User data now persists permanently across bot restarts and Replit environment refreshes with exact Discord ID preservation
 - **Connection Pooling**: Implemented efficient database connection pooling for improved performance
 ### Major Updates
 - **Complete Slash Commands Conversion**: All prefix commands (!) converted to modern Discord slash commands (/)
