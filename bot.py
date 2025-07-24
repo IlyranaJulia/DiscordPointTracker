@@ -1032,8 +1032,9 @@ def user_analytics():
             # Initialize database connection
             loop.run_until_complete(db.initialize())
             
-            # Get user analytics from database
+            # Get user analytics and current balance from database
             analytics_data = loop.run_until_complete(db.get_user_analytics(user_id))
+            current_balance = loop.run_until_complete(db.get_points(user_id))
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -1044,7 +1045,7 @@ def user_analytics():
                     "success": True,
                     "analytics": {
                         "user_id": str(user_id),
-                        "current_balance": 0,  # Need to get from points table separately
+                        "current_balance": current_balance or 0,
                         "total_earned": analytics_data[0] or 0,
                         "total_spent": analytics_data[1] or 0,
                         "highest_balance": analytics_data[2] or 0,
