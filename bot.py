@@ -1262,9 +1262,12 @@ def export_email_submissions():
             # Write header
             writer.writerow(['Discord_User_ID', 'Discord_Username', 'Email_Address', 'Submitted_At', 'Status', 'Processed_At', 'Admin_Notes'])
             
-            # Write data
+            # Write data with ' prefix for user IDs to preserve Excel formatting
             for row in submissions:
-                writer.writerow(row)
+                # Add apostrophe prefix to user ID to prevent Excel from changing format
+                formatted_row = list(row)
+                formatted_row[1] = "'" + str(row[1])  # Add ' to user ID
+                writer.writerow(formatted_row)
             
             csv_content = output.getvalue()
             output.close()
@@ -1431,6 +1434,129 @@ def healthz():
         "version": "1.0.0"
     }), 200
 
+@app.route("/api/bulk_points", methods=["POST"])
+def bulk_points_management():
+    """API endpoint for bulk points management with user ID template"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        action = data.get('action')  # 'set', 'add', 'remove'
+        users_data = data.get('users', [])  # List of {user_id: str, points: int}
+        reason = data.get('reason', 'Bulk points operation')
+        
+        if not action or not users_data:
+            return jsonify({"success": False, "error": "Missing action or users data"})
+        
+        # Connect to database
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Process bulk operations
+            async def process_bulk_points():
+                results = []
+                for user_data in users_data:
+                    user_id = str(user_data.get('user_id', '')).strip().lstrip("'")  # Remove ' prefix if present
+                    points = user_data.get('points', 0)
+                    
+                    if not user_id or user_id == 'user_id':  # Skip header row if present
+                        continue
+                    
+                    try:
+                        points = int(points)
+                        if action == 'set':
+                            success = await db.set_points(user_id, points, admin_id=None, reason=reason)
+                        elif action == 'add':
+                            success = await db.update_points(user_id, points, admin_id=None, reason=reason)
+                        elif action == 'remove':
+                            success = await db.update_points(user_id, -abs(points), admin_id=None, reason=reason)
+                        else:
+                            success = False
+                        
+                        results.append({
+                            "user_id": user_id,
+                            "points": points,
+                            "success": success,
+                            "action": action
+                        })
+                    except Exception as e:
+                        results.append({
+                            "user_id": user_id, 
+                            "success": False, 
+                            "error": str(e)
+                        })
+                
+                return results
+            
+            results = loop.run_until_complete(process_bulk_points())
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            # Count successes and failures
+            successes = sum(1 for r in results if r.get('success', False))
+            failures = len(results) - successes
+            
+            return jsonify({
+                "success": True,
+                "results": results,
+                "summary": {
+                    "total": len(results),
+                    "successes": successes,
+                    "failures": failures
+                },
+                "message": f"Bulk {action} operation completed: {successes} successes, {failures} failures"
+            })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error in bulk points management: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/bulk_template")
+def get_bulk_template():
+    """API endpoint to get CSV template for bulk points management"""
+    try:
+        import csv
+        from io import StringIO
+        
+        # Create template CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['user_id', 'points'])
+        
+        # Write example rows with ' prefix for user IDs
+        writer.writerow(["'495044225994326033", "100"])
+        writer.writerow(["'312257111033774090", "150"])
+        writer.writerow(["'716944162402074680", "200"])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Return as downloadable template
+        from flask import Response
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={"Content-disposition": "attachment; filename=bulk_points_template.csv"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating bulk template: {e}")
+        return jsonify({"success": False, "error": str(e)})
 
 
 class PointsBot(commands.Bot):

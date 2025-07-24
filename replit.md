@@ -24,6 +24,8 @@ The application follows a modular architecture with clear separation of concerns
 - **PostgreSQL Implementation**: Created new database layer with full async support using asyncpg
 - **Critical User ID Fix (2025-07-24)**: Resolved Discord user ID precision loss by changing schema from BIGINT to TEXT, preventing ID truncation (e.g., 495044225994326033 was stored as 495044225994326000)
 - **Email Data Recovery (2025-07-24)**: Successfully recovered all 17 email submissions from SQLite backup after accidental deletion during schema migration
+- **CSV Export Enhancement (2025-07-24)**: Added apostrophe prefix to user IDs in CSV exports to prevent Excel from changing Discord ID format
+- **Bulk Points Management (2025-07-24)**: Implemented comprehensive bulk points operations (set/add/remove) with CSV template and user ID preservation
 - **Enhanced Reliability**: User data now persists permanently across bot restarts and Replit environment refreshes with exact Discord ID preservation
 - **Connection Pooling**: Implemented efficient database connection pooling for improved performance
 ### Major Updates

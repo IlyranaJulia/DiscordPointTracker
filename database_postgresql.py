@@ -98,23 +98,26 @@ class PostgreSQLPointsDatabase:
         if self.pool:
             await self.pool.close()
     
-    async def get_points(self, user_id: int) -> int:
+    async def get_points(self, user_id) -> int:
         """Get points for a user"""
         try:
+            # Ensure user_id is string for TEXT field
+            user_id_str = str(user_id)
             async with self.pool.acquire() as conn:
-                result = await conn.fetchval('SELECT balance FROM points WHERE user_id = $1', user_id)
+                result = await conn.fetchval('SELECT balance FROM points WHERE user_id = $1', user_id_str)
                 return result if result is not None else 0
         except Exception as e:
             logger.error(f"Error getting points for user {user_id}: {e}")
             return 0
     
-    async def update_points(self, user_id: int, amount: int, admin_id: int = None, reason: str = None) -> bool:
+    async def update_points(self, user_id, amount: int, admin_id: int = None, reason: str = None) -> bool:
         """Update points for a user with transaction logging"""
         try:
+            user_id_str = str(user_id)
             async with self.pool.acquire() as conn:
                 async with conn.transaction():
                     # Get current balance
-                    current_balance = await conn.fetchval('SELECT balance FROM points WHERE user_id = $1', user_id)
+                    current_balance = await conn.fetchval('SELECT balance FROM points WHERE user_id = $1', user_id_str)
                     if current_balance is None:
                         current_balance = 0
                         # Insert new user
@@ -160,26 +163,27 @@ class PostgreSQLPointsDatabase:
             logger.error(f"Error updating points for user {user_id}: {e}")
             return False
 
-    async def set_points(self, user_id: int, amount: int, admin_id: int = None, reason: str = None) -> bool:
+    async def set_points(self, user_id, amount: int, admin_id: int = None, reason: str = None) -> bool:
         """Set points for a user to a specific amount"""
         try:
+            user_id_str = str(user_id)
             async with self.pool.acquire() as conn:
                 async with conn.transaction():
                     # Get current balance
-                    current_balance = await conn.fetchval('SELECT balance FROM points WHERE user_id = $1', user_id)
+                    current_balance = await conn.fetchval('SELECT balance FROM points WHERE user_id = $1', user_id_str)
                     if current_balance is None:
                         current_balance = 0
                         # Insert new user with specified points
                         await conn.execute('''
                             INSERT INTO points (user_id, balance, created_at, updated_at) 
                             VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        ''', user_id, amount)
+                        ''', user_id_str, amount)
                         
                         # Insert user stats
                         await conn.execute('''
                             INSERT INTO user_stats (user_id, total_points_earned, transactions_count, first_activity, last_activity)
                             VALUES ($1, $2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        ''', user_id, max(0, amount))
+                        ''', user_id_str, max(0, amount))
                         transaction_amount = amount
                     else:
                         # Update existing user to specific amount
@@ -187,7 +191,7 @@ class PostgreSQLPointsDatabase:
                             UPDATE points 
                             SET balance = $1, updated_at = CURRENT_TIMESTAMP 
                             WHERE user_id = $2
-                        ''', amount, user_id)
+                        ''', amount, user_id_str)
                         
                         # Update user stats
                         transaction_amount = amount - current_balance
@@ -199,14 +203,14 @@ class PostgreSQLPointsDatabase:
                                 last_activity = CURRENT_TIMESTAMP,
                                 highest_balance = GREATEST(highest_balance, $2)
                             WHERE user_id = $3
-                        ''', points_earned, amount, user_id)
+                        ''', points_earned, amount, user_id_str)
                     
                     # Log transaction  
                     transaction_type = "set"
                     await conn.execute('''
                         INSERT INTO transactions (user_id, amount, transaction_type, admin_id, reason, old_balance, new_balance)
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    ''', user_id, transaction_amount, transaction_type, admin_id, reason or "Points set", current_balance, amount)
+                    ''', user_id_str, transaction_amount, transaction_type, admin_id, reason or "Points set", current_balance, amount)
                     
             return True
         except Exception as e:
