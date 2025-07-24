@@ -2031,7 +2031,14 @@ def run_flask():
     # For Replit external access, use 0.0.0.0
     host = '0.0.0.0'
     logger.info(f'Starting Flask server on {host}:{port}')
-    app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
+    try:
+        app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
+    except OSError as e:
+        if "Address already in use" in str(e):
+            logger.warning(f'Port {port} is in use, Flask server startup failed but continuing with Discord bot')
+        else:
+            logger.error(f'Flask server failed to start: {e}')
+            raise
 
 def main():
     """Main application entry point with enhanced error handling and proper startup"""
