@@ -1705,7 +1705,7 @@ async def store_user_email(user_id: int, email: str):
 async def mypoints_slash(interaction: discord.Interaction):
     """Check your points balance via DM"""
     try:
-        balance = await bot.db.get_points(interaction.user.id)
+        balance = await bot.db.get_points(str(interaction.user.id))
         
         embed = discord.Embed(
             title="💰 Your Points Balance",
@@ -1820,11 +1820,11 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
             WHERE discord_user_id = $1
             ORDER BY submitted_at DESC LIMIT 1
         '''
-        existing_result = await bot.db.execute_query(existing_query, interaction.user.id)
+        existing_result = await bot.db.execute_query(existing_query, str(interaction.user.id))
         existing = existing_result[0] if existing_result else None
         
         # Store the email (will update if pending, or raise error if processed)
-        await store_user_email(interaction.user.id, email.strip())
+        await store_user_email(str(interaction.user.id), email.strip())
 
         if existing:
             old_email, status = existing
@@ -1891,7 +1891,7 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
             cursor = await db.execute('''
                 SELECT id, email_address FROM email_submissions 
                 WHERE discord_user_id = ? AND status = 'pending'
-            ''', (interaction.user.id,))
+            ''', (str(interaction.user.id),))
             
             existing = await cursor.fetchone()
             
