@@ -19,7 +19,7 @@ class PostgreSQLPointsDatabase:
                 # Create points table
                 await conn.execute('''
                     CREATE TABLE IF NOT EXISTS points (
-                        user_id BIGINT PRIMARY KEY,
+                        user_id TEXT PRIMARY KEY,
                         balance INTEGER DEFAULT 0,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -30,10 +30,10 @@ class PostgreSQLPointsDatabase:
                 await conn.execute('''
                     CREATE TABLE IF NOT EXISTS transactions (
                         id SERIAL PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
+                        user_id TEXT NOT NULL,
                         amount INTEGER NOT NULL,
                         transaction_type TEXT NOT NULL,
-                        admin_id BIGINT,
+                        admin_id INTEGER,
                         reason TEXT,
                         old_balance INTEGER NOT NULL,
                         new_balance INTEGER NOT NULL,
@@ -45,7 +45,7 @@ class PostgreSQLPointsDatabase:
                 await conn.execute('''
                     CREATE TABLE IF NOT EXISTS achievements (
                         id SERIAL PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
+                        user_id TEXT NOT NULL,
                         achievement_type TEXT NOT NULL,
                         achievement_name TEXT NOT NULL,
                         points_earned INTEGER DEFAULT 0,
@@ -56,7 +56,7 @@ class PostgreSQLPointsDatabase:
                 # Create user_stats table
                 await conn.execute('''
                     CREATE TABLE IF NOT EXISTS user_stats (
-                        user_id BIGINT PRIMARY KEY,
+                        user_id TEXT PRIMARY KEY,
                         total_points_earned INTEGER DEFAULT 0,
                         total_points_spent INTEGER DEFAULT 0,
                         highest_balance INTEGER DEFAULT 0,
@@ -71,7 +71,7 @@ class PostgreSQLPointsDatabase:
                 await conn.execute('''
                     CREATE TABLE IF NOT EXISTS email_submissions (
                         id SERIAL PRIMARY KEY,
-                        discord_user_id BIGINT NOT NULL,
+                        discord_user_id TEXT NOT NULL,
                         discord_username TEXT NOT NULL,
                         email_address TEXT NOT NULL,
                         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -701,10 +701,10 @@ def manage_points():
             return jsonify({"success": False, "error": "Missing required fields"})
         
         try:
-            user_id = int(user_id_str)
+            user_id = user_id_str.strip()  # Keep as string to preserve Discord ID precision
             amount = int(amount_str)
         except ValueError:
-            return jsonify({"success": False, "error": "Invalid user ID or amount format"})
+            return jsonify({"success": False, "error": "Invalid amount format"})
         
         # Validate inputs
         if action not in ['add', 'remove', 'set']:
@@ -1017,7 +1017,7 @@ def user_analytics():
             return jsonify({"success": False, "error": "User ID is required"})
         
         try:
-            user_id = int(user_id_str)
+            user_id = user_id_str.strip()  # Keep as string to preserve Discord ID precision
         except ValueError:
             return jsonify({"success": False, "error": "Invalid user ID format"})
         
