@@ -1948,7 +1948,7 @@ async def myemail_slash(interaction: discord.Interaction):
                 FROM email_submissions 
                 WHERE discord_user_id = $1
                 ORDER BY submitted_at DESC
-            ''', interaction.user.id)
+            ''', str(interaction.user.id))
             
             submission_list = [tuple(row) for row in submissions]
             logger.info(f"User {interaction.user.id} has {len(submission_list)} total submissions in database")
