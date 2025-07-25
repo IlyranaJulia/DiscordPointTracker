@@ -2088,8 +2088,16 @@ def set_user_points():
             # Initialize database connection
             loop.run_until_complete(db.initialize())
             
+            # Get current points before updating
+            current_points = loop.run_until_complete(db.get_points(user_id))
+            
             # Set user points
             success = loop.run_until_complete(db.set_points(user_id, points, admin_id=None, reason=reason))
+            
+            # Send DM notification if successful
+            if success:
+                notification_message = f"🔄 **Points Updated**\n\nYour points have been set to **{points:,} points**.\n\n📝 **Reason:** {reason or 'Admin adjustment'}"
+                loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "points_update"))
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -2130,6 +2138,14 @@ def process_user_email():
             # Initialize database connection
             loop.run_until_complete(db.initialize())
             
+            # Get email details before processing
+            email_query = '''
+                SELECT email_address FROM email_submissions 
+                WHERE discord_user_id = $1 AND status = 'pending'
+            '''
+            email_result = loop.run_until_complete(db.execute_query(email_query, user_id))
+            user_email = email_result[0][0] if email_result else "your email"
+            
             # Update email status to processed
             query = '''
                 UPDATE email_submissions 
@@ -2138,6 +2154,10 @@ def process_user_email():
             '''
             
             result = loop.run_until_complete(db.execute_query(query, user_id))
+            
+            # Send DM notification about email processing
+            notification_message = f"✅ **Email Processed**\n\nYour email submission **{user_email}** has been processed by an admin.\n\n📧 Status: **Completed**\n🕒 Processed at: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**"
+            loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "email_processed"))
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -2727,12 +2747,27 @@ def bulk_points_management():
                     
                     try:
                         points = int(points)
+                        
+                        # Get current points before operation for better notification messages
+                        current_points = await db.get_points(user_id)
+                        
                         if action == 'set':
                             success = await db.set_points(user_id, points, admin_id=None, reason=reason)
+                            if success:
+                                notification_message = f"🔄 **Points Set**\n\nYour points have been set to **{points:,} points**.\n\n📝 **Reason:** {reason or 'Admin adjustment'}"
+                                await send_admin_notification_dm(user_id, notification_message, "points_set")
                         elif action == 'add':
                             success = await db.update_points(user_id, points, admin_id=None, reason=reason)
+                            if success:
+                                new_total = current_points + points
+                                notification_message = f"➕ **Points Added**\n\nYou received **+{points:,} points**!\n\n💰 **New Total:** {new_total:,} points\n📝 **Reason:** {reason or 'Admin bonus'}"
+                                await send_admin_notification_dm(user_id, notification_message, "points_added")
                         elif action == 'remove':
                             success = await db.update_points(user_id, -abs(points), admin_id=None, reason=reason)
+                            if success:
+                                new_total = max(0, current_points - abs(points))
+                                notification_message = f"➖ **Points Removed**\n\n**{abs(points):,} points** have been deducted.\n\n💰 **New Total:** {new_total:,} points\n📝 **Reason:** {reason or 'Admin adjustment'}"
+                                await send_admin_notification_dm(user_id, notification_message, "points_removed")
                         else:
                             success = False
                         
@@ -2908,6 +2943,76 @@ class PointsBot(commands.Bot):
 bot = PointsBot()
 
 # Function to store user email (for the privacy slash command)
+async def send_admin_notification_dm(user_id, message_content, message_type="general"):
+    """Send DM notification to a user and store in admin_messages table"""
+    try:
+        # Convert user_id to int for Discord API
+        discord_user_id = int(user_id)
+        user = bot.get_user(discord_user_id)
+        
+        if not user:
+            try:
+                user = await bot.fetch_user(discord_user_id)
+            except:
+                logger.error(f"Could not find user {user_id} for notification")
+                return False
+        
+        # Store message in database first
+        await bot.db.initialize()
+        async with bot.db.pool.acquire() as conn:
+            message_id = await conn.fetchval('''
+                INSERT INTO admin_messages (
+                    sender_admin_id, sender_admin_name, recipient_user_id, 
+                    recipient_username, message_content, message_type, 
+                    delivery_status, sent_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+                RETURNING id
+            ''', "0", "System Auto", str(user_id), user.display_name, 
+                message_content, message_type, "sending")
+        
+        # Create embed message
+        embed = discord.Embed(
+            title=f"📬 {message_type.replace('_', ' ').title()}",
+            description=message_content,
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="From",
+            value="Admin Dashboard (Automated)",
+            inline=True
+        )
+        
+        # Try to send the DM
+        try:
+            await user.send(embed=embed)
+            
+            # Update delivery status to delivered
+            async with bot.db.pool.acquire() as conn:
+                await conn.execute('''
+                    UPDATE admin_messages 
+                    SET delivery_status = 'delivered' 
+                    WHERE id = $1
+                ''', message_id)
+            
+            logger.info(f"Auto DM sent successfully to user {user_id}: {message_type}")
+            return True
+            
+        except discord.Forbidden:
+            # Update delivery status with error
+            async with bot.db.pool.acquire() as conn:
+                await conn.execute('''
+                    UPDATE admin_messages 
+                    SET delivery_status = 'failed', delivery_error = 'User has DMs disabled or blocked bot'
+                    WHERE id = $1
+                ''', message_id)
+            
+            logger.warning(f"Could not send auto DM to user {user_id}: DMs disabled")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error sending auto notification DM to user {user_id}: {e}")
+        return False
+
 async def store_user_email(user_id: int, email: str, roles: list = None):
     """Store user email and server roles in database - only one pending submission per user"""
     # Use the bot's PostgreSQL database connection
