@@ -2969,13 +2969,12 @@ def send_admin_notification_dm_sync(user_id, message_content, message_type="gene
                     delivery_error = str(dm_error)
                     logger.error(f"❌ Failed to send DM to user {user_id}: {dm_error}")
                 
-                # Update delivery status
+                # Update delivery status (table doesn't have delivered_at column)
                 await conn.execute('''
                     UPDATE admin_messages 
-                    SET delivery_status = $1, delivery_error = $2, delivered_at = $3
-                    WHERE id = $4
-                ''', delivery_status, delivery_error, 
-                datetime.now() if delivery_status == "delivered" else None, message_id)
+                    SET delivery_status = $1, delivery_error = $2
+                    WHERE id = $3
+                ''', delivery_status, delivery_error, message_id)
                 
                 return delivery_status == "delivered"
                 
