@@ -3286,24 +3286,27 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
             pass
             
     except ValueError as e:
-        if str(e) == "ALREADY_PROCESSED":
-            await interaction.response.send_message(
-                "❌ You have already submitted an email that has been processed by admin. "
-                "Each user can only submit one email for verification.",
-                ephemeral=True
-            )
+        if str(e) == "ALREADY_PROCESSED" or "already have a processed email" in str(e):
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ You have already submitted an email that has been processed by admin. "
+                    "Each user can only submit one email for verification.",
+                    ephemeral=True
+                )
         else:
             logger.error(f"ValueError in submitemail slash command: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ An error occurred while submitting your email. Please try again later.",
+                    ephemeral=True
+                )
+    except Exception as e:
+        logger.error(f"Error in submitemail slash command: {e}")
+        if not interaction.response.is_done():
             await interaction.response.send_message(
                 "❌ An error occurred while submitting your email. Please try again later.",
                 ephemeral=True
             )
-    except Exception as e:
-        logger.error(f"Error in submitemail slash command: {e}")
-        await interaction.response.send_message(
-            "❌ An error occurred while submitting your email. Please try again later.",
-            ephemeral=True
-        )
 
 @bot.tree.command(name="updateemail", description="Update your previously submitted email address")
 @app_commands.describe(email="Your new email address")
@@ -3402,10 +3405,11 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
         
     except Exception as e:
         logger.error(f"Error in updateemail slash command: {e}")
-        await interaction.response.send_message(
-            "❌ An error occurred while updating your email. Please try again later.",
-            ephemeral=True
-        )
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "❌ An error occurred while updating your email. Please try again later.",
+                ephemeral=True
+            )
 
 @bot.tree.command(name="myemail", description="Check your current email submission status")
 async def myemail_slash(interaction: discord.Interaction):
@@ -3432,7 +3436,7 @@ async def myemail_slash(interaction: discord.Interaction):
             
             # Debug logging to track what we found
             if submission:
-                sub_id, email, submitted_at, status, processed_at, server_roles = submission[:6]  # Handle all columns
+                sub_id, email, submitted_at, status, processed_at, server_roles = submission
                 logger.info(f"User {interaction.user.id} latest submission: ID={sub_id}, Email={email}, Status={status}, Processed={processed_at}")
             else:
                 logger.info(f"User {interaction.user.id} has no email submissions in database")
@@ -3489,10 +3493,11 @@ async def myemail_slash(interaction: discord.Interaction):
         
     except Exception as e:
         logger.error(f"Error in myemail slash command: {e}")
-        await interaction.response.send_message(
-            "❌ An error occurred while checking your email status.",
-            ephemeral=True
-        )
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "❌ An error occurred while checking your email status.",
+                ephemeral=True
+            )
 
 @bot.tree.command(name="pipihelp", description="Show help information for all commands")
 async def pipihelp_slash(interaction: discord.Interaction):
