@@ -11,6 +11,7 @@ import os
 from flask import Flask, request, jsonify
 from config import Config
 from database_postgresql import PostgreSQLPointsDatabase
+from enhanced_achievements import check_and_award_achievements, get_user_achievements, get_recent_achievements, ACHIEVEMENT_TYPES
 from datetime import datetime
 
 # Email validation regex
@@ -134,16 +135,50 @@ def dashboard():
         <div class="container">
             <div class="nav">
                 <a href="/" >← Home</a>
-                <a href="#" onclick="showSection('users')" class="active">User Management</a>
-                <a href="#" onclick="showSection('emails')">Email Submissions</a>
-                <a href="#" onclick="showSection('points')">Points Management</a>
-                <a href="#" onclick="showSection('database')">Database Admin</a>
-                <a href="#" onclick="showSection('achievements')">Achievements</a>
-                <a href="#" onclick="showSection('analytics')">Analytics</a>
+                <a href="#" onclick="showSection('overview')" class="active">📊 Overview</a>
+                <a href="#" onclick="showSection('users')">👥 User Management</a>
+                <a href="#" onclick="showSection('emails')">📧 Email Submissions</a>
             </div>
             
+            <!-- Overview Section (NEW) -->
+            <div id="overview-section">
+                <div class="grid">
+                    <div class="card">
+                        <h3>📊 Database Overview</h3>
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <div class="stat-number" id="overview-total-users">-</div>
+                                <div>Total Users</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="overview-total-points">-</div>
+                                <div>Total Points</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="overview-pending-emails">-</div>
+                                <div>Pending Emails</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="overview-achievements">-</div>
+                                <div>Achievements Earned</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>🏆 Recent Achievements</h3>
+                        <div id="recent-achievements-list">Loading achievements...</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>📈 Recent Activity</h3>
+                    <div id="recent-transactions-list">Loading transactions...</div>
+                </div>
+            </div>
+
             <!-- User Management Section -->
-            <div id="users-section">
+            <div id="users-section" class="hidden">
                 <div class="card">
                     <h3>👥 User Management</h3>
                     <p>Unified management of users, points, and email submissions with search functionality</p>
@@ -368,9 +403,65 @@ def dashboard():
                 });
             }
             
-            // Load initial stats and users on page load (users section is default)
-            refreshStats();
-            loadUsers();
+            // Load initial overview data on page load (overview section is default)
+            loadOverviewData();
+            
+            function loadOverviewData() {
+                // Load overview stats
+                fetch('/api/quick_stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('overview-total-users').textContent = data.total_users || 0;
+                    document.getElementById('overview-total-points').textContent = (data.total_points || 0).toLocaleString();
+                    document.getElementById('overview-achievements').textContent = data.total_achievements || 0;
+                });
+                
+                // Load pending email count
+                fetch('/api/email_submissions')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.stats) {
+                        document.getElementById('overview-pending-emails').textContent = data.stats.pending || 0;
+                    }
+                });
+                
+                // Load recent achievements
+                fetch('/api/recent_achievements')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '';
+                    if (data.achievements && data.achievements.length > 0) {
+                        data.achievements.slice(0, 5).forEach(ach => {
+                            html += '<div style="padding: 8px; border-bottom: 1px solid #eee;">';
+                            html += '<strong>User ' + ach.user_id.slice(-4) + '</strong> earned <strong>' + ach.achievement_name + '</strong>';
+                            html += '<div style="font-size: 12px; color: #666;">+' + ach.points_earned + ' points • ' + new Date(ach.earned_at).toLocaleDateString() + '</div>';
+                            html += '</div>';
+                        });
+                    } else {
+                        html = '<div style="padding: 20px; text-align: center; color: #666;">No recent achievements</div>';
+                    }
+                    document.getElementById('recent-achievements-list').innerHTML = html;
+                });
+                
+                // Load recent transactions
+                fetch('/api/recent_transactions')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '';
+                    if (data.transactions && data.transactions.length > 0) {
+                        data.transactions.slice(0, 8).forEach(tx => {
+                            const color = tx.amount > 0 ? '#28a745' : '#dc3545';
+                            html += '<div style="padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">';
+                            html += '<div>User ' + tx.user_id.slice(-4) + ' • ' + (tx.reason || tx.type) + '</div>';
+                            html += '<div style="color: ' + color + '; font-weight: bold;">' + (tx.amount > 0 ? '+' : '') + tx.amount + '</div>';
+                            html += '</div>';
+                        });
+                    } else {
+                        html = '<div style="padding: 20px; text-align: center; color: #666;">No recent transactions</div>';
+                    }
+                    document.getElementById('recent-transactions-list').innerHTML = html;
+                });
+            }
             
             function loadTransactions() {
                 fetch('/api/recent_transactions')
@@ -994,7 +1085,10 @@ def manage_points():
                     success = loop.run_until_complete(db.update_points(user_id, amount, admin_id, reason))
                     if success:
                         new_balance = loop.run_until_complete(db.get_points(user_id))
-                        message = f"Successfully added {amount:,} points. New balance: {new_balance:,}"
+                        # Check for new achievements
+                        new_achievements = loop.run_until_complete(check_and_award_achievements(db, user_id, new_balance))
+                        achievement_msg = f" (+{len(new_achievements)} achievements)" if new_achievements else ""
+                        message = f"Successfully added {amount:,} points. New balance: {new_balance:,}{achievement_msg}"
                     else:
                         return jsonify({"success": False, "error": "Failed to add points to database"})
                 elif action == 'remove':
@@ -1010,7 +1104,10 @@ def manage_points():
                 else:  # set
                     success = loop.run_until_complete(db.set_points(user_id, amount, admin_id, reason))
                     if success:
-                        message = f"Successfully set points to {amount:,}"
+                        # Check for new achievements after setting points
+                        new_achievements = loop.run_until_complete(check_and_award_achievements(db, user_id, amount))
+                        achievement_msg = f" (+{len(new_achievements)} achievements)" if new_achievements else ""
+                        message = f"Successfully set points to {amount:,}{achievement_msg}"
                     else:
                         return jsonify({"success": False, "error": "Failed to set points in database"})
                         
@@ -2233,7 +2330,8 @@ async def mypoints_slash(interaction: discord.Interaction):
         except Exception as follow_error:
             logger.error(f"Could not send error message: {follow_error}")
 
-@bot.tree.command(name="pointsboard", description="Show the points leaderboard")
+@bot.tree.command(name="pointsboard", description="Show the points leaderboard (Admin only)")
+@app_commands.default_permissions(administrator=True)
 @app_commands.describe(limit="Number of users to show (max 25)")
 async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
     """Show the points leaderboard"""
@@ -2560,11 +2658,28 @@ async def pipihelp_slash(interaction: discord.Interaction):
     embed.add_field(
         name="👤 User Commands",
         value="`/mypoints` - Check your points balance (private)\n"
-              "`/pointsboard [limit]` - Show points leaderboard\n"
               "`/submitemail <email>` - Submit order email (private)\n"
               "`/updateemail <email>` - Update your submitted email\n"
               "`/myemail` - Check your email submission status\n"
               "`/pipihelp` - Show this help message",
+        inline=False
+    )
+    
+    # Admin commands
+    embed.add_field(
+        name="⚙️ Admin Commands",
+        value="`/pointsboard [limit]` - Show points leaderboard\n"
+              "`/status` - Show bot status and statistics\n"
+              "`/refreshpresence` - Force refresh bot online status\n"
+              "`/checkemail <user>` - Check any user's email status",
+        inline=False
+    )
+    
+    # Achievement commands
+    embed.add_field(
+        name="🏆 Achievement Commands",
+        value="`/achievements [user]` - View achievements (your own or someone else's)\n"
+              "`/recentachievements` - See latest achievements earned by all users",
         inline=False
     )
     
@@ -2632,6 +2747,98 @@ async def refresh_presence_slash(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in refresh_presence slash command: {e}")
         await interaction.followup.send("❌ An error occurred while refreshing bot presence.")
+
+@bot.tree.command(name="achievements", description="View user achievements")
+@app_commands.describe(user="User to check achievements for (optional)")
+async def achievements_slash(interaction: discord.Interaction, user: discord.User = None):
+    """View achievements for yourself or another user"""
+    try:
+        target_user = user or interaction.user
+        user_id = str(target_user.id)
+        
+        # Get user achievements
+        achievements = await get_user_achievements(bot.db, user_id)
+        
+        embed = discord.Embed(
+            title=f"🏆 {target_user.display_name}'s Achievements",
+            color=discord.Color.gold()
+        )
+        embed.set_thumbnail(url=target_user.display_avatar.url)
+        
+        if not achievements:
+            embed.description = "No achievements earned yet! Keep using the bot to unlock rewards."
+            embed.add_field(
+                name="Available Achievements", 
+                value="• First Points Earned (50 pts)\n• 100 Points Milestone (25 pts)\n• 500 Points Milestone (75 pts)\n• 1000 Points Milestone (150 pts)\n• High Roller - 2000+ points (300 pts)\n• Email Verified (100 pts)", 
+                inline=False
+            )
+        else:
+            total_achievement_points = sum(ach['points_earned'] for ach in achievements)
+            
+            embed.description = f"**{len(achievements)} achievements earned**\n**{total_achievement_points} bonus points from achievements**\n"
+            
+            achievement_text = ""
+            for ach in achievements:
+                achievement_type = ach['achievement_type']
+                achievement_data = ACHIEVEMENT_TYPES.get(achievement_type, {})
+                emoji = achievement_data.get('emoji', '🏆')
+                
+                achievement_text += f"{emoji} **{ach['achievement_name']}**\n"
+                achievement_text += f"   +{ach['points_earned']} points • {ach['earned_at'].strftime('%b %d, %Y')}\n"
+            
+            embed.add_field(name="Earned Achievements", value=achievement_text[:1024], inline=False)
+        
+        await interaction.response.send_message(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in achievements slash command: {e}")
+        await interaction.response.send_message("❌ An error occurred while fetching achievements.")
+
+@bot.tree.command(name="recentachievements", description="View recent achievements earned by all users")
+async def recent_achievements_slash(interaction: discord.Interaction):
+    """View recent achievements across all users"""
+    try:
+        recent_achievements = await get_recent_achievements(bot.db, 15)
+        
+        embed = discord.Embed(
+            title="🎉 Recent Achievements",
+            color=discord.Color.gold()
+        )
+        
+        if not recent_achievements:
+            embed.description = "No achievements earned recently. Be the first!"
+        else:
+            achievement_text = ""
+            for ach in recent_achievements:
+                user_id = ach['user_id']
+                achievement_type = ach['achievement_type']
+                achievement_data = ACHIEVEMENT_TYPES.get(achievement_type, {})
+                emoji = achievement_data.get('emoji', '🏆')
+                
+                # Try to get Discord username
+                try:
+                    discord_user = bot.get_user(int(user_id))
+                    if discord_user:
+                        username = discord_user.display_name
+                    else:
+                        discord_user = await bot.fetch_user(int(user_id))
+                        username = discord_user.display_name
+                except:
+                    username = f"User {user_id}"
+                
+                achievement_text += f"{emoji} **{username}** earned **{ach['achievement_name']}**\n"
+                achievement_text += f"   +{ach['points_earned']} points • {ach['earned_at'].strftime('%b %d')}\n\n"
+                
+                if len(achievement_text) > 1500:  # Prevent embed overflow
+                    break
+            
+            embed.description = achievement_text
+        
+        await interaction.response.send_message(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in recent achievements slash command: {e}")
+        await interaction.response.send_message("❌ An error occurred while fetching recent achievements.")
 
 @bot.tree.command(name="checkemail", description="Admin: Check any user's email submission status")
 @app_commands.default_permissions(administrator=True)
