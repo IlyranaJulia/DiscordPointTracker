@@ -2446,30 +2446,34 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
                     # Get role names (excluding @everyone)
                     role_names = [role.name for role in member.roles if role.name != "@everyone"]
                     user_roles = role_names
-                    roles_debug_info = f"Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "User has no roles (only @everyone)"
+                    roles_debug_info = f"✓ SUCCESS: Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "✓ SUCCESS: User has no roles (only @everyone)"
+                    logger.info(f"✓ Role collection SUCCESS for user {interaction.user.id}: {roles_debug_info}")
                 else:
                     roles_debug_info = f"Member not found in guild {interaction.guild.name}"
+                    logger.warning(f"Member {interaction.user.id} not found in guild cache, attempting fetch...")
                     # Try to fetch member
                     try:
                         member = await interaction.guild.fetch_member(interaction.user.id)
                         if member:
                             role_names = [role.name for role in member.roles if role.name != "@everyone"]
                             user_roles = role_names
-                            roles_debug_info = f"Fetched member - Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "Fetched member has no roles (only @everyone)"
+                            roles_debug_info = f"✓ FETCH SUCCESS: Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "✓ FETCH SUCCESS: Member has no roles (only @everyone)"
+                            logger.info(f"✓ Role collection FETCH SUCCESS for user {interaction.user.id}: {roles_debug_info}")
                     except Exception as fetch_error:
-                        roles_debug_info = f"Failed to fetch member: {fetch_error}"
+                        roles_debug_info = f"✗ FETCH FAILED: {fetch_error}"
+                        logger.error(f"✗ Role collection FETCH FAILED for user {interaction.user.id}: {fetch_error}")
                         
-                logger.info(f"Role collection for user {interaction.user.id}: {roles_debug_info}")
             except Exception as e:
-                roles_debug_info = f"Error: {e}"
-                logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
+                roles_debug_info = f"✗ ERROR: {e}"
+                logger.error(f"✗ Role collection ERROR for user {interaction.user.id}: {e}")
         else:
-            logger.warning(f"No guild context for user {interaction.user.id} email submission")
+            logger.warning(f"✗ No guild context for user {interaction.user.id} email submission")
         
         # Ensure roles were collected or provide meaningful fallback
         if not user_roles and interaction.guild:
             user_roles = ["Member only"]
-            roles_debug_info = "No additional roles - basic member"
+            roles_debug_info = "→ Using fallback: Member only"
+            logger.info(f"→ Using fallback for user {interaction.user.id}: Member only")
         
         # Store the email with roles (will update if pending, or raise error if processed)
         await store_user_email(str(interaction.user.id), email.strip(), user_roles)
@@ -2545,30 +2549,34 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
                     # Get role names (excluding @everyone)
                     role_names = [role.name for role in member.roles if role.name != "@everyone"]
                     user_roles = role_names
-                    roles_debug_info = f"Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "User has no roles (only @everyone)"
+                    roles_debug_info = f"✓ UPDATE SUCCESS: Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "✓ UPDATE SUCCESS: User has no roles (only @everyone)"
+                    logger.info(f"✓ Role collection UPDATE SUCCESS for user {interaction.user.id}: {roles_debug_info}")
                 else:
                     roles_debug_info = f"Member not found in guild {interaction.guild.name}"
+                    logger.warning(f"Member {interaction.user.id} not found in guild cache for update, attempting fetch...")
                     # Try to fetch member
                     try:
                         member = await interaction.guild.fetch_member(interaction.user.id)
                         if member:
                             role_names = [role.name for role in member.roles if role.name != "@everyone"]
                             user_roles = role_names
-                            roles_debug_info = f"Fetched member - Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "Fetched member has no roles (only @everyone)"
+                            roles_debug_info = f"✓ UPDATE FETCH SUCCESS: Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "✓ UPDATE FETCH SUCCESS: Member has no roles (only @everyone)"
+                            logger.info(f"✓ Role collection UPDATE FETCH SUCCESS for user {interaction.user.id}: {roles_debug_info}")
                     except Exception as fetch_error:
-                        roles_debug_info = f"Failed to fetch member: {fetch_error}"
+                        roles_debug_info = f"✗ UPDATE FETCH FAILED: {fetch_error}"
+                        logger.error(f"✗ Role collection UPDATE FETCH FAILED for user {interaction.user.id}: {fetch_error}")
                         
-                logger.info(f"Role collection for user {interaction.user.id} update: {roles_debug_info}")
             except Exception as e:
-                roles_debug_info = f"Error: {e}"
-                logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
+                roles_debug_info = f"✗ UPDATE ERROR: {e}"
+                logger.error(f"✗ Role collection UPDATE ERROR for user {interaction.user.id}: {e}")
         else:
-            logger.warning(f"No guild context for user {interaction.user.id} email update")
+            logger.warning(f"✗ No guild context for user {interaction.user.id} email update")
             
         # Ensure roles were collected or provide meaningful fallback
         if not user_roles and interaction.guild:
             user_roles = ["Member only"]
-            roles_debug_info = "No additional roles - basic member"
+            roles_debug_info = "→ Using fallback for update: Member only"
+            logger.info(f"→ Using fallback for user {interaction.user.id} update: Member only")
         
         # Use PostgreSQL instead of SQLite
         await bot.db.initialize()
@@ -2990,6 +2998,7 @@ async def send_dm_slash(interaction: discord.Interaction, user: discord.User, me
             "important": "🚨 **Important Notice:**"
         }.get(message_type, "📢 **Message from admin:**")
         
+        # Send the DM
         await user.send(f"{message_prefix}\n\n{message}")
         
         # Update delivery status
@@ -3000,7 +3009,7 @@ async def send_dm_slash(interaction: discord.Interaction, user: discord.User, me
                 WHERE id = $1
             ''', message_id)
         
-        # Confirm to admin
+        # Confirm to admin - single response only
         embed = discord.Embed(
             title="✅ DM Sent Successfully",
             description=f"Message sent to **{user.display_name}** ({user.mention})",
@@ -3022,6 +3031,7 @@ async def send_dm_slash(interaction: discord.Interaction, user: discord.User, me
             inline=True
         )
         
+        # Only send ONE response to the interaction
         await interaction.response.send_message(embed=embed, ephemeral=True)
         
         # Log the admin action
@@ -3039,10 +3049,12 @@ async def send_dm_slash(interaction: discord.Interaction, user: discord.User, me
         except:
             pass
             
-        await interaction.response.send_message(
-            f"❌ Could not send DM to **{user.display_name}**. They may have DMs disabled or blocked the bot.",
-            ephemeral=True
-        )
+        # Only send ONE response - check if already responded
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                f"❌ Could not send DM to **{user.display_name}**. They may have DMs disabled or blocked the bot.",
+                ephemeral=True
+            )
     except Exception as e:
         # Update delivery status with error
         try:
@@ -3056,10 +3068,12 @@ async def send_dm_slash(interaction: discord.Interaction, user: discord.User, me
             pass
             
         logger.error(f"Error in senddm command: {e}")
-        await interaction.response.send_message(
-            "❌ An error occurred while sending the DM. Please try again later.",
-            ephemeral=True
-        )
+        # Only send ONE response - check if already responded
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "❌ An error occurred while sending the DM. Please try again later.",
+                ephemeral=True
+            )
 
 @bot.tree.command(name="viewmessages", description="Admin: View sent DM message history")
 @app_commands.default_permissions(administrator=True)
