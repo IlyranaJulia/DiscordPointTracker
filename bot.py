@@ -566,7 +566,8 @@ def dashboard():
                     }
                     html += '</td>';
                     html += '<td>';
-                    html += '<button onclick="editUser(' + "'" + user.user_id + "'" + ')" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Edit</button>';
+                    html += '<button onclick="editUser(' + "'" + user.user_id + "'" + ')" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Edit Points</button>';
+                    html += '<button onclick="editUserProfile(' + "'" + user.user_id + "'" + ')" style="background: #6f42c1; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">👤 Edit Profile</button>';
                     if (user.email && user.email_status === 'pending') {
                         html += '<button onclick="processUserEmail(' + "'" + user.user_id + "'" + ')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✓ Process Email</button>';
                     }
@@ -609,6 +610,51 @@ def dashboard():
                     if (result.success) {
                         loadUsers();
                         alert('Points updated successfully!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function editUserProfile(userId) {
+                const user = allUsers.find(u => u.user_id === userId);
+                if (!user) {
+                    alert('User not found');
+                    return;
+                }
+                
+                const currentUsername = user.username && user.username !== `User ${userId}` ? user.username : '';
+                const currentEmail = user.email || '';
+                
+                const newUsername = prompt('Set username for User ' + userId + ':', currentUsername);
+                if (newUsername === null) return;
+                
+                const newEmail = prompt('Set email address for ' + (newUsername || 'User ' + userId) + ':', currentEmail);
+                if (newEmail === null) return;
+                
+                // Basic email validation
+                if (newEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+                    alert('Please enter a valid email address');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/update_user_profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: userId,
+                            username: newUsername.trim(),
+                            email: newEmail.trim()
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadUsers();
+                        alert('User profile updated successfully!');
                     } else {
                         alert('Error: ' + result.error);
                     }
@@ -1719,6 +1765,73 @@ def process_user_email():
             
     except Exception as e:
         logger.error(f"Error processing user email: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/update_user_profile", methods=["POST"])
+def update_user_profile():
+    """API endpoint for updating user profile (username and email)"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id = data.get('user_id')
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "Missing user_id"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Check if user already has an email submission
+            check_query = 'SELECT id FROM email_submissions WHERE discord_user_id = $1'
+            existing_submission = loop.run_until_complete(db.execute_query(check_query, user_id))
+            
+            if existing_submission:
+                # Update existing email submission
+                update_query = '''
+                    UPDATE email_submissions 
+                    SET discord_username = $1, email_address = $2, 
+                        submitted_at = CASE WHEN email_address != $2 THEN CURRENT_TIMESTAMP ELSE submitted_at END,
+                        status = CASE WHEN email_address != $2 THEN 'pending' ELSE status END
+                    WHERE discord_user_id = $3
+                '''
+                loop.run_until_complete(db.execute_query(update_query, username, email, user_id))
+                message = "User profile updated successfully"
+            else:
+                # Create new email submission if email is provided
+                if email:
+                    insert_query = '''
+                        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, status, submitted_at)
+                        VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)
+                    '''
+                    loop.run_until_complete(db.execute_query(insert_query, user_id, username, email))
+                    message = "User profile created with email submission"
+                else:
+                    # For username-only updates, we could store in a separate table or just return success
+                    # For now, we'll require email to create a submission
+                    message = "Username noted (email required for submission)"
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"success": True, "message": message})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error updating user profile: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/clear_processed_emails", methods=["POST"])
