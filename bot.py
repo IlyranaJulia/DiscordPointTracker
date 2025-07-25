@@ -2971,14 +2971,8 @@ async def mypoints_slash(interaction: discord.Interaction):
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         
-        # Always respond ephemerally for privacy
+        # Always respond ephemerally for privacy - single response only
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        
-        # Also try to send DM
-        try:
-            await interaction.user.send(embed=embed)
-        except discord.Forbidden:
-            pass  # User has DMs disabled
         
     except Exception as e:
         logger.error(f"Error in mypoints slash command: {e}")
