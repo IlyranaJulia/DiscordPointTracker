@@ -3542,7 +3542,7 @@ async def myemail_slash(interaction: discord.Interaction):
                 inline=False
             )
         else:
-            sub_id, email, submitted_at, status, processed_at = submission
+            sub_id, email, submitted_at, status, processed_at, server_roles = submission
             embed = discord.Embed(
                 title="📧 Your Email Submission",
                 description=f"**Email:** {email}",
