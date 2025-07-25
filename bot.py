@@ -260,8 +260,16 @@ def dashboard():
                             <h4>📤 Send New Message</h4>
                             <form id="sendMessageForm">
                                 <div class="form-group">
-                                    <label for="dm-user-id">User ID:</label>
-                                    <input type="text" id="dm-user-id" name="user_id" placeholder="Discord User ID" required>
+                                    <label for="dm-user-lookup">User Lookup:</label>
+                                    <input type="text" id="dm-user-lookup" placeholder="Enter User ID, Username, or Email Address" required style="margin-bottom: 5px;">
+                                    <button type="button" onclick="lookupUser()" style="background: #28a745; font-size: 12px; padding: 4px 8px;">🔍 Find User</button>
+                                    <div id="user-lookup-result" style="margin-top: 5px; font-size: 12px;"></div>
+                                </div>
+                                
+                                <div class="form-group" style="display: none;" id="confirmed-user-section">
+                                    <label for="dm-user-id">Confirmed User:</label>
+                                    <input type="text" id="dm-user-id" name="user_id" readonly style="background: #f8f9fa;">
+                                    <div id="confirmed-user-info" style="font-size: 12px; color: #666; margin-top: 2px;"></div>
                                 </div>
                                 
                                 <div class="form-group">
@@ -1210,6 +1218,49 @@ def dashboard():
                 }
             }
             
+            // User Lookup Function
+            async function lookupUser() {
+                const lookup = document.getElementById('dm-user-lookup').value.trim();
+                const resultDiv = document.getElementById('user-lookup-result');
+                const confirmedSection = document.getElementById('confirmed-user-section');
+                
+                if (!lookup) {
+                    resultDiv.innerHTML = '<span style="color: #dc3545;">Please enter a User ID, username, or email address</span>';
+                    return;
+                }
+                
+                resultDiv.innerHTML = '<span style="color: #007bff;">🔍 Searching...</span>';
+                
+                try {
+                    const response = await fetch('/api/lookup_user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lookup: lookup })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success && result.user) {
+                        const user = result.user;
+                        resultDiv.innerHTML = '<span style="color: #28a745;">✅ User found!</span>';
+                        
+                        // Show confirmed user section
+                        document.getElementById('dm-user-id').value = user.user_id;
+                        document.getElementById('confirmed-user-info').innerHTML = 
+                            '<strong>' + user.username + '</strong><br>' +
+                            'Email: ' + (user.email || 'No email') + '<br>' +
+                            'Points: ' + (user.points || 0).toLocaleString();
+                        confirmedSection.style.display = 'block';
+                    } else {
+                        resultDiv.innerHTML = '<span style="color: #dc3545;">❌ ' + (result.error || 'User not found') + '</span>';
+                        confirmedSection.style.display = 'none';
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = '<span style="color: #dc3545;">❌ Error: ' + error.message + '</span>';
+                    confirmedSection.style.display = 'none';
+                }
+            }
+
             // Send Message Form Handler
             document.addEventListener('DOMContentLoaded', function() {
                 loadEmailSubmissions();
@@ -1228,7 +1279,7 @@ def dashboard():
                         };
                         
                         if (!data.user_id || !data.message) {
-                            alert('Please fill in all required fields');
+                            alert('Please find a user first using the lookup function, then fill in the message');
                             return;
                         }
                         
@@ -2475,6 +2526,117 @@ def export_messages():
     except Exception as e:
         logger.error(f"Error exporting messages: {e}")
         return jsonify({"messages": []})
+
+@app.route("/api/lookup_user", methods=["POST"])
+def lookup_user():
+    """API endpoint for user lookup by email, username, or user ID"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        lookup = data.get('lookup', '').strip()
+        if not lookup:
+            return jsonify({"success": False, "error": "Lookup value is required"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Try different lookup methods
+            user_data = None
+            
+            # Method 1: Try exact user ID match
+            if lookup.isdigit():
+                user_query = '''
+                    SELECT DISTINCT 
+                        COALESCE(p.user_id, e.discord_user_id) as user_id,
+                        COALESCE(e.discord_username, 'User ' || COALESCE(p.user_id, e.discord_user_id)) as username,
+                        e.email_address as email,
+                        COALESCE(p.balance, 0) as points
+                    FROM points p 
+                    FULL OUTER JOIN email_submissions e ON p.user_id = e.discord_user_id
+                    WHERE COALESCE(p.user_id, e.discord_user_id) = $1
+                '''
+                result = loop.run_until_complete(db.execute_query(user_query, lookup))
+                if result:
+                    user_data = result[0]
+            
+            # Method 2: Try email address match
+            if not user_data and '@' in lookup:
+                email_query = '''
+                    SELECT DISTINCT 
+                        COALESCE(p.user_id, e.discord_user_id) as user_id,
+                        COALESCE(e.discord_username, 'User ' || COALESCE(p.user_id, e.discord_user_id)) as username,
+                        e.email_address as email,
+                        COALESCE(p.balance, 0) as points
+                    FROM email_submissions e
+                    LEFT JOIN points p ON e.discord_user_id = p.user_id
+                    WHERE LOWER(e.email_address) = LOWER($1)
+                '''
+                result = loop.run_until_complete(db.execute_query(email_query, lookup))
+                if result:
+                    user_data = result[0]
+            
+            # Method 3: Try username search (case-insensitive, partial match)
+            if not user_data:
+                username_query = '''
+                    SELECT DISTINCT 
+                        COALESCE(p.user_id, e.discord_user_id) as user_id,
+                        COALESCE(e.discord_username, 'User ' || COALESCE(p.user_id, e.discord_user_id)) as username,
+                        e.email_address as email,
+                        COALESCE(p.balance, 0) as points
+                    FROM email_submissions e
+                    LEFT JOIN points p ON e.discord_user_id = p.user_id
+                    WHERE LOWER(e.discord_username) LIKE LOWER($1)
+                    UNION
+                    SELECT DISTINCT 
+                        p.user_id,
+                        'User ' || p.user_id as username,
+                        NULL as email,
+                        p.balance as points
+                    FROM points p
+                    WHERE p.user_id NOT IN (SELECT discord_user_id FROM email_submissions WHERE discord_user_id IS NOT NULL)
+                    AND ('User ' || p.user_id) LIKE $1
+                    LIMIT 1
+                '''
+                search_term = f"%{lookup}%"
+                result = loop.run_until_complete(db.execute_query(username_query, search_term))
+                if result:
+                    user_data = result[0]
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            if user_data:
+                return jsonify({
+                    "success": True,
+                    "user": {
+                        "user_id": str(user_data[0]),
+                        "username": user_data[1],
+                        "email": user_data[2],
+                        "points": user_data[3]
+                    }
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": f"No user found matching '{lookup}'. Try User ID, exact email address, or username."
+                })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error in user lookup: {e}")
+        return jsonify({"success": False, "error": f"Database error: {str(e)}"})
 
 @app.route("/status")
 def status():
