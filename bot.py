@@ -3312,7 +3312,7 @@ async def myemail_slash(interaction: discord.Interaction):
             
             # Debug logging to track what we found
             if submission:
-                sub_id, email, submitted_at, status, processed_at = submission[:5]  # Handle variable length tuples
+                sub_id, email, submitted_at, status, processed_at, server_roles = submission[:6]  # Handle all columns
                 logger.info(f"User {interaction.user.id} latest submission: ID={sub_id}, Email={email}, Status={status}, Processed={processed_at}")
             else:
                 logger.info(f"User {interaction.user.id} has no email submissions in database")
