@@ -2844,19 +2844,22 @@ def bulk_points_management():
                             success = await db.set_points(user_id, points, admin_id=None, reason=reason)
                             if success:
                                 notification_message = f"🔄 **Points Set**\n\nYour points have been set to **{points:,} points**.\n\n📝 **Reason:** {reason or 'Admin adjustment'}"
-                                await send_admin_notification_dm(user_id, notification_message, "points_set")
+                                # Use sync wrapper for Flask route context
+                                send_admin_notification_dm_sync(user_id, notification_message, "points_set")
                         elif action == 'add':
                             success = await db.update_points(user_id, points, admin_id=None, reason=reason)
                             if success:
                                 new_total = current_points + points
                                 notification_message = f"➕ **Points Added**\n\nYou received **+{points:,} points**!\n\n💰 **New Total:** {new_total:,} points\n📝 **Reason:** {reason or 'Admin bonus'}"
-                                await send_admin_notification_dm(user_id, notification_message, "points_added")
+                                # Use sync wrapper for Flask route context
+                                send_admin_notification_dm_sync(user_id, notification_message, "points_added")
                         elif action == 'remove':
                             success = await db.update_points(user_id, -abs(points), admin_id=None, reason=reason)
                             if success:
                                 new_total = max(0, current_points - abs(points))
                                 notification_message = f"➖ **Points Removed**\n\n**{abs(points):,} points** have been deducted.\n\n💰 **New Total:** {new_total:,} points\n📝 **Reason:** {reason or 'Admin adjustment'}"
-                                await send_admin_notification_dm(user_id, notification_message, "points_removed")
+                                # Use sync wrapper for Flask route context
+                                send_admin_notification_dm_sync(user_id, notification_message, "points_removed")
                         else:
                             success = False
                         
