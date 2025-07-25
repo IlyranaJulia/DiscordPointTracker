@@ -2347,136 +2347,22 @@ def send_dm():
             # Check if user exists and get username
             user_data = loop.run_until_complete(db.execute_query('SELECT user_id FROM points WHERE user_id = $1', user_id_str))
             
-            # Get Discord user object using integer conversion
-            try:
-                # Convert to int first for Discord API
-                user_id_int = int(user_id_str)
-                discord_user = bot.get_user(user_id_int)
-                if not discord_user:
-                    # Try fetching user if not in cache - create proper async task
-                    async def fetch_user_async():
-                        try:
-                            return await bot.fetch_user(user_id_int)
-                        except discord.NotFound:
-                            return None
-                        except Exception:
-                            return None
-                    
-                    discord_user = loop.run_until_complete(fetch_user_async())
-                
-                if discord_user:
-                    username = discord_user.display_name
-                    logger.info(f"Successfully found Discord user: {username} ({user_id_str})")
-                else:
-                    logger.error(f"Discord user {user_id_str} not found")
-                    loop.run_until_complete(db.close())
-                    return jsonify({"success": False, "error": "User not found on Discord"})
-                    
-            except ValueError as e:
-                logger.error(f"Invalid user ID format {user_id_str}: {e}")
-                loop.run_until_complete(db.close())
-                return jsonify({"success": False, "error": f"Invalid user ID format: {user_id_str}"})
-            except Exception as e:
-                logger.error(f"Error getting Discord user {user_id_str}: {e}")
-                loop.run_until_complete(db.close())
-                return jsonify({"success": False, "error": f"Error finding user: {e}"})
+            # Use the synchronous DM wrapper instead of complex async logic
+            success = send_admin_notification_dm_sync(user_id_str, message_content, message_type)
             
-            # Store message in database first
-            message_id = loop.run_until_complete(db.execute_query('''
-                INSERT INTO admin_messages (
-                    sender_admin_id, sender_admin_name, recipient_user_id, 
-                    recipient_username, message_content, message_type, 
-                    delivery_status, sent_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-                RETURNING id
-            ''', "0", "Dashboard Admin", user_id_str, username, message_content, message_type, "pending"))
+            # Close database connection
+            loop.run_until_complete(db.close())
             
-            message_id = message_id[0][0] if message_id else None
-            
-            # Try to send the message
-            if discord_user:
-                try:
-                    # Create embed message
-                    embed = discord.Embed(
-                        title=f"📬 {message_type.replace('_', ' ').title()} Message",
-                        description=message_content,
-                        color=discord.Color.blue()
-                    )
-                    embed.add_field(name="From", value="Bot Administration", inline=True)
-                    embed.add_field(name="Type", value=message_type.replace('_', ' ').title(), inline=True)
-                    embed.set_footer(text=f"Message ID: {message_id}")
-                    
-                    # Send DM using proper async task
-                    async def send_dm_async():
-                        try:
-                            await discord_user.send(embed=embed)
-                            return True
-                        except discord.Forbidden:
-                            return False
-                        except Exception as e:
-                            logger.error(f"Error sending DM: {e}")
-                            return False
-                    
-                    dm_sent = loop.run_until_complete(send_dm_async())
-                    
-                    # Update delivery status based on result
-                    if message_id:
-                        if dm_sent:
-                            loop.run_until_complete(db.execute_query('''
-                                UPDATE admin_messages 
-                                SET delivery_status = 'delivered' 
-                                WHERE id = $1
-                            ''', message_id))
-                            status = "delivered"
-                            message = f"Message sent successfully to {username}"
-                        else:
-                            loop.run_until_complete(db.execute_query('''
-                                UPDATE admin_messages 
-                                SET delivery_status = 'failed', delivery_error = 'User has DMs disabled or blocked bot'
-                                WHERE id = $1
-                            ''', message_id))
-                            status = "failed"
-                            message = f"Failed to send message to {username} (DMs disabled or bot blocked)"
-                    
-                    # Close database connection
-                    loop.run_until_complete(db.close())
-                    
-                    if dm_sent:
-                        return jsonify({
-                            "success": True, 
-                            "message": message,
-                            "message_id": message_id
-                        })
-                    else:
-                        return jsonify({
-                            "success": False, 
-                            "error": message,
-                            "message_id": message_id
-                        })
-                    
-                except discord.Forbidden:
-                    # Update delivery status with error
-                    if message_id:
-                        loop.run_until_complete(db.execute_query('''
-                            UPDATE admin_messages 
-                            SET delivery_status = 'failed', delivery_error = 'User has DMs disabled or blocked bot'
-                            WHERE id = $1
-                        ''', message_id))
-                    
-                    return jsonify({
-                        "success": False, 
-                        "error": f"Could not send DM to {username}. They may have DMs disabled or blocked the bot."
-                    })
+            if success:
+                return jsonify({
+                    "success": True,
+                    "message": f"DM sent successfully to user {user_id_str}"
+                })
             else:
-                # Update delivery status with error
-                if message_id:
-                    loop.run_until_complete(db.execute_query('''
-                        UPDATE admin_messages 
-                        SET delivery_status = 'failed', delivery_error = 'User not found'
-                        WHERE id = $1
-                    ''', message_id))
-                
-                return jsonify({"success": False, "error": "User not found"})
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to send DM. Check logs for details."
+                })
                 
         finally:
             loop.close()
