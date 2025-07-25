@@ -14,8 +14,8 @@ from database_postgresql import PostgreSQLPointsDatabase
 from enhanced_achievements import check_and_award_achievements, get_user_achievements, get_recent_achievements, ACHIEVEMENT_TYPES
 from datetime import datetime
 
-# Email validation regex
-EMAIL_RE = re.compile(r"[^@]+@[^@]+\.[^@]+")
+# Email validation regex - improved pattern
+EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 # Configure logging
 logging.basicConfig(
@@ -3706,8 +3706,7 @@ async def view_messages_slash(interaction: discord.Interaction, user: discord.Us
 # Web Interface with admin dashboard continues below...
 # All old prefix commands have been replaced with modern slash commands above
 
-# Email regex for validation
-EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
 
 
 
