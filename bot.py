@@ -1758,22 +1758,36 @@ async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
             color=discord.Color.gold()
         )
         
-        description = ""
+        # Get total stats for overview
+        total_users = await bot.db.get_total_users()
+        total_points = await bot.db.get_total_points()
+        
+        description = f"📊 **Database Overview:**\n"
+        description += f"👥 Total Users: {total_users:,}\n"
+        description += f"💰 Total Points: {total_points:,}\n\n"
+        description += f"🏆 **Top {min(limit, len(top_users))} Rankings:**\n"
+        
         for i, (user_id, balance) in enumerate(top_users, 1):
-            # Try to get user from the current guild first, then global cache
-            user = interaction.guild.get_member(user_id) if interaction.guild else None
-            if not user:
-                user = bot.get_user(user_id)
-            
-            if user:
-                username = user.display_name
+            # Convert string user_id to int for Discord API
+            try:
+                discord_user_id = int(user_id)
+            except (ValueError, TypeError):
+                username = f"User {user_id}"
             else:
-                # Try to fetch user from Discord API as last resort
-                try:
-                    user = await bot.fetch_user(user_id)
+                # Try to get user from the current guild first, then global cache
+                user = interaction.guild.get_member(discord_user_id) if interaction.guild else None
+                if not user:
+                    user = bot.get_user(discord_user_id)
+                
+                if user:
                     username = user.display_name
-                except:
-                    username = f"User {user_id}"
+                else:
+                    # Try to fetch user from Discord API as last resort
+                    try:
+                        user = await bot.fetch_user(discord_user_id)
+                        username = user.display_name
+                    except:
+                        username = f"User {user_id}"
             
             # Add medals for top 3
             if i == 1:

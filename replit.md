@@ -17,7 +17,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Configuration Layer**: Environment-based configuration management
 - **Logging Layer**: Comprehensive logging system for monitoring and debugging
 
-## Recent Changes (2025-07-22 - 2025-07-23)
+## Recent Changes (2025-07-22 - 2025-07-25)
 
 ### Database Migration to PostgreSQL (2025-07-23 to 2025-07-24)
 - **Database Persistence Issue Resolved**: SQLite data was being lost on Replit refreshes
@@ -30,6 +30,12 @@ The application follows a modular architecture with clear separation of concerns
 - **Points Database Import (2025-07-24)**: Imported 41 user point balances from CSV backup with current timestamps, total 39,761 points distributed across all users
 - **Enhanced Reliability**: User data now persists permanently across bot restarts and Replit environment refreshes with exact Discord ID preservation
 - **Connection Pooling**: Implemented efficient database connection pooling for improved performance
+
+### User Experience Improvements (2025-07-25)
+- **Pointsboard Enhancement**: Fixed /pointsboard command to show Discord usernames instead of user IDs
+- **Database Overview Addition**: Added comprehensive database statistics to pointsboard showing total users (42) and total points (239,859)
+- **User ID Conversion Fix**: Properly handle string-to-integer conversion for Discord API calls while maintaining TEXT storage for precision
+- **Leaderboard Display**: Enhanced ranking display with database overview including user count and point distribution
 ### Major Updates
 - **Complete Slash Commands Conversion**: All prefix commands (!) converted to modern Discord slash commands (/)
 - **Code Cleanup**: Removed duplicate Python files (bot_backup.py, test_order_system.py, order_processor_simple.py)
