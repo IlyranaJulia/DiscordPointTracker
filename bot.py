@@ -138,6 +138,7 @@ def dashboard():
                 <a href="#" onclick="showSection('overview')" class="active">📊 Overview</a>
                 <a href="#" onclick="showSection('users')">👥 User Management</a>
                 <a href="#" onclick="showSection('emails')">📧 Email Submissions</a>
+                <a href="#" onclick="showSection('messages')">💬 Direct Messages</a>
             </div>
             
             <!-- Overview Section (NEW) -->
@@ -244,6 +245,78 @@ def dashboard():
                     
                     <div id="email-submissions-container">
                         <div class="loading">Loading email submissions...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Direct Messages Section -->
+            <div id="messages-section" class="hidden">
+                <div class="card">
+                    <h3>💬 Direct Messages Management</h3>
+                    <p>Send direct messages to users and view message history with delivery tracking</p>
+                    
+                    <div class="grid">
+                        <div class="card">
+                            <h4>📤 Send New Message</h4>
+                            <form id="sendMessageForm">
+                                <div class="form-group">
+                                    <label for="dm-user-id">User ID:</label>
+                                    <input type="text" id="dm-user-id" name="user_id" placeholder="Discord User ID" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="dm-message-type">Message Type:</label>
+                                    <select id="dm-message-type" name="message_type" required>
+                                        <option value="general">📢 General</option>
+                                        <option value="order_status">📦 Order Status</option>
+                                        <option value="error_alert">⚠️ Error Alert</option>
+                                        <option value="important">🚨 Important Notice</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="dm-message">Message Content:</label>
+                                    <textarea id="dm-message" name="message" rows="4" placeholder="Enter your message..." required></textarea>
+                                </div>
+                                
+                                <button type="submit">Send Message</button>
+                            </form>
+                            <div id="send-message-result"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <h4>📊 Message Statistics</h4>
+                            <div class="stats-grid">
+                                <div class="stat-box">
+                                    <div class="stat-number" id="total-messages-sent">-</div>
+                                    <div>Total Messages</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number" id="messages-delivered">-</div>
+                                    <div>Delivered</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number" id="messages-failed">-</div>
+                                    <div>Failed</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-number" id="messages-pending">-</div>
+                                    <div>Pending</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h4>📬 Message History</h4>
+                        <div class="form-group">
+                            <button onclick="loadMessageHistory()" class="refresh-btn">🔄 Refresh History</button>
+                            <button onclick="exportMessageHistory()" class="export-btn">📥 Export History</button>
+                        </div>
+                        
+                        <div id="message-history-container">
+                            <div class="loading">Loading message history...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -382,6 +455,9 @@ def dashboard():
                     loadUsers();
                 } else if (section === 'emails') {
                     loadEmailSubmissions();
+                } else if (section === 'messages') {
+                    loadMessageHistory();
+                    loadMessageStats();
                 } else if (section === 'database') {
                     loadTransactions();
                     loadDatabaseStats();
@@ -1027,9 +1103,159 @@ def dashboard():
                 }
             }
 
-            // Load email submissions when page loads
+            // Direct Messages Functions
+            async function loadMessageHistory() {
+                try {
+                    const response = await fetch('/api/message_history');
+                    const data = await response.json();
+                    
+                    const container = document.getElementById('message-history-container');
+                    
+                    if (!data.messages || data.messages.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No messages found</div>';
+                        return;
+                    }
+                    
+                    let html = '<table><thead><tr>';
+                    html += '<th>Date</th><th>Admin</th><th>Recipient</th><th>Type</th><th>Message</th><th>Status</th></tr></thead><tbody>';
+                    
+                    data.messages.forEach(msg => {
+                        const statusColor = msg.delivery_status === 'delivered' ? '#28a745' : 
+                                          msg.delivery_status === 'failed' ? '#dc3545' : '#ffc107';
+                        const statusIcon = msg.delivery_status === 'delivered' ? '✅' : 
+                                         msg.delivery_status === 'failed' ? '❌' : '⏳';
+                        
+                        html += '<tr>';
+                        html += '<td>' + new Date(msg.sent_at).toLocaleString() + '</td>';
+                        html += '<td>' + msg.sender_admin_name + '</td>';
+                        html += '<td>' + msg.recipient_username + '</td>';
+                        html += '<td>' + msg.message_type.replace('_', ' ').toUpperCase() + '</td>';
+                        html += '<td style="max-width: 300px; word-wrap: break-word;">' + 
+                               msg.message_content.substring(0, 100) + 
+                               (msg.message_content.length > 100 ? '...' : '') + '</td>';
+                        html += '<td><span style="color: ' + statusColor + ';">' + statusIcon + ' ' + 
+                               msg.delivery_status.toUpperCase() + '</span>';
+                        if (msg.delivery_error) {
+                            html += '<br><small style="color: #dc3545;">' + msg.delivery_error + '</small>';
+                        }
+                        html += '</td>';
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                } catch (error) {
+                    console.error('Error loading message history:', error);
+                    document.getElementById('message-history-container').innerHTML = 
+                        '<div style="color: red;">Error loading message history</div>';
+                }
+            }
+            
+            async function loadMessageStats() {
+                try {
+                    const response = await fetch('/api/message_stats');
+                    const data = await response.json();
+                    
+                    document.getElementById('total-messages-sent').textContent = data.total || 0;
+                    document.getElementById('messages-delivered').textContent = data.delivered || 0;
+                    document.getElementById('messages-failed').textContent = data.failed || 0;
+                    document.getElementById('messages-pending').textContent = data.pending || 0;
+                } catch (error) {
+                    console.error('Error loading message stats:', error);
+                }
+            }
+            
+            async function exportMessageHistory() {
+                try {
+                    const response = await fetch('/api/export_messages');
+                    const data = await response.json();
+                    
+                    if (!data.messages || data.messages.length === 0) {
+                        alert('No messages to export');
+                        return;
+                    }
+                    
+                    // Create CSV content
+                    const headers = ['Date', 'Admin', 'Admin ID', 'Recipient', 'Recipient ID', 'Type', 'Message', 'Status', 'Error'];
+                    let csvContent = headers.join(',') + '\\n';
+                    
+                    data.messages.forEach(msg => {
+                        const row = [
+                            '"' + new Date(msg.sent_at).toISOString() + '"',
+                            '"' + msg.sender_admin_name + '"',
+                            '"' + msg.sender_admin_id + '"',
+                            '"' + msg.recipient_username + '"',
+                            '"' + msg.recipient_user_id + '"',
+                            '"' + msg.message_type + '"',
+                            '"' + msg.message_content.replace(/"/g, '""') + '"',
+                            '"' + msg.delivery_status + '"',
+                            '"' + (msg.delivery_error || '') + '"'
+                        ];
+                        csvContent += row.join(',') + '\\n';
+                    });
+                    
+                    // Download CSV
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'admin_messages_' + new Date().toISOString().split('T')[0] + '.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    alert('Message history exported successfully!');
+                } catch (error) {
+                    alert('Error exporting: ' + error.message);
+                }
+            }
+            
+            // Send Message Form Handler
             document.addEventListener('DOMContentLoaded', function() {
                 loadEmailSubmissions();
+                
+                // Add event listener for send message form
+                const sendForm = document.getElementById('sendMessageForm');
+                if (sendForm) {
+                    sendForm.addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        
+                        const formData = new FormData(sendForm);
+                        const data = {
+                            user_id: formData.get('user_id'),
+                            message_type: formData.get('message_type'),
+                            message: formData.get('message')
+                        };
+                        
+                        if (!data.user_id || !data.message) {
+                            alert('Please fill in all required fields');
+                            return;
+                        }
+                        
+                        try {
+                            const response = await fetch('/api/send_dm', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            });
+                            
+                            const result = await response.json();
+                            const resultDiv = document.getElementById('send-message-result');
+                            
+                            if (result.success) {
+                                resultDiv.innerHTML = '<div class="success">' + result.message + '</div>';
+                                sendForm.reset();
+                                loadMessageHistory();
+                                loadMessageStats();
+                            } else {
+                                resultDiv.innerHTML = '<div class="error">Error: ' + result.error + '</div>';
+                            }
+                        } catch (error) {
+                            document.getElementById('send-message-result').innerHTML = 
+                                '<div class="error">Error: ' + error.message + '</div>';
+                        }
+                    });
+                }
             });
 
         </script>
@@ -1977,6 +2203,278 @@ def clear_processed_emails():
     except Exception as e:
         logger.error(f"Error clearing processed emails: {e}")
         return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/send_dm", methods=["POST"])
+def send_dm():
+    """API endpoint for sending DMs through the web dashboard"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id = data.get('user_id')
+        message_type = data.get('message_type', 'general')
+        message_content = data.get('message')
+        
+        if not all([user_id, message_content]):
+            return jsonify({"success": False, "error": "Missing required fields"})
+        
+        # Validate message type
+        valid_types = ['general', 'order_status', 'error_alert', 'important']
+        if message_type not in valid_types:
+            return jsonify({"success": False, "error": "Invalid message type"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Check if user exists and get username
+            user_data = loop.run_until_complete(db.execute_query('SELECT user_id FROM points WHERE user_id = $1', user_id))
+            
+            # Get Discord user object
+            try:
+                discord_user = bot.get_user(int(user_id))
+                if not discord_user:
+                    # Try fetching user if not in cache
+                    discord_user = loop.run_until_complete(bot.fetch_user(int(user_id)))
+                
+                username = discord_user.display_name if discord_user else f"User {user_id}"
+            except:
+                username = f"User {user_id}"
+            
+            # Store message in database first
+            message_id = loop.run_until_complete(db.execute_query('''
+                INSERT INTO admin_messages (
+                    sender_admin_id, sender_admin_name, recipient_user_id, 
+                    recipient_username, message_content, message_type, 
+                    delivery_status, sent_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+                RETURNING id
+            ''', "0", "Dashboard Admin", user_id, username, message_content, message_type, "pending"))
+            
+            message_id = message_id[0][0] if message_id else None
+            
+            # Try to send the message
+            if discord_user:
+                try:
+                    # Create embed message
+                    embed = discord.Embed(
+                        title=f"📬 {message_type.replace('_', ' ').title()} Message",
+                        description=message_content,
+                        color=discord.Color.blue()
+                    )
+                    embed.add_field(name="From", value="Bot Administration", inline=True)
+                    embed.add_field(name="Type", value=message_type.replace('_', ' ').title(), inline=True)
+                    embed.set_footer(text=f"Message ID: {message_id}")
+                    
+                    # Send DM
+                    loop.run_until_complete(discord_user.send(embed=embed))
+                    
+                    # Update delivery status
+                    if message_id:
+                        loop.run_until_complete(db.execute_query('''
+                            UPDATE admin_messages 
+                            SET delivery_status = 'delivered' 
+                            WHERE id = $1
+                        ''', message_id))
+                    
+                    # Close database connection
+                    loop.run_until_complete(db.close())
+                    
+                    return jsonify({
+                        "success": True, 
+                        "message": f"Message sent successfully to {username}",
+                        "message_id": message_id
+                    })
+                    
+                except discord.Forbidden:
+                    # Update delivery status with error
+                    if message_id:
+                        loop.run_until_complete(db.execute_query('''
+                            UPDATE admin_messages 
+                            SET delivery_status = 'failed', delivery_error = 'User has DMs disabled or blocked bot'
+                            WHERE id = $1
+                        ''', message_id))
+                    
+                    return jsonify({
+                        "success": False, 
+                        "error": f"Could not send DM to {username}. They may have DMs disabled or blocked the bot."
+                    })
+            else:
+                # Update delivery status with error
+                if message_id:
+                    loop.run_until_complete(db.execute_query('''
+                        UPDATE admin_messages 
+                        SET delivery_status = 'failed', delivery_error = 'User not found'
+                        WHERE id = $1
+                    ''', message_id))
+                
+                return jsonify({"success": False, "error": "User not found"})
+                
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error sending DM via dashboard: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/message_history")
+def message_history():
+    """API endpoint for message history"""
+    try:
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get message history from database
+            messages_data = loop.run_until_complete(db.execute_query('''
+                SELECT id, sender_admin_name, recipient_username, message_content, 
+                       message_type, sent_at, delivery_status, delivery_error,
+                       sender_admin_id, recipient_user_id
+                FROM admin_messages 
+                ORDER BY sent_at DESC 
+                LIMIT 50
+            '''))
+            
+            # Format messages for API response
+            messages = []
+            for msg in messages_data:
+                messages.append({
+                    "id": msg[0],
+                    "sender_admin_name": msg[1],
+                    "recipient_username": msg[2],
+                    "message_content": msg[3],
+                    "message_type": msg[4],
+                    "sent_at": msg[5].isoformat() if msg[5] else None,
+                    "delivery_status": msg[6],
+                    "delivery_error": msg[7],
+                    "sender_admin_id": msg[8],
+                    "recipient_user_id": msg[9]
+                })
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"messages": messages})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting message history: {e}")
+        return jsonify({"messages": []})
+
+@app.route("/api/message_stats")
+def message_stats():
+    """API endpoint for message statistics"""
+    try:
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get message statistics
+            stats_data = loop.run_until_complete(db.execute_query('''
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered,
+                    COUNT(CASE WHEN delivery_status = 'failed' THEN 1 END) as failed,
+                    COUNT(CASE WHEN delivery_status = 'pending' THEN 1 END) as pending
+                FROM admin_messages
+            '''))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            if stats_data:
+                stats = stats_data[0]
+                return jsonify({
+                    "total": stats[0],
+                    "delivered": stats[1],
+                    "failed": stats[2],
+                    "pending": stats[3]
+                })
+            else:
+                return jsonify({"total": 0, "delivered": 0, "failed": 0, "pending": 0})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting message stats: {e}")
+        return jsonify({"total": 0, "delivered": 0, "failed": 0, "pending": 0})
+
+@app.route("/api/export_messages")
+def export_messages():
+    """API endpoint for exporting message history"""
+    try:
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get all messages from database
+            messages_data = loop.run_until_complete(db.execute_query('''
+                SELECT id, sender_admin_name, sender_admin_id, recipient_username, 
+                       recipient_user_id, message_content, message_type, sent_at, 
+                       delivery_status, delivery_error
+                FROM admin_messages 
+                ORDER BY sent_at DESC
+            '''))
+            
+            # Format messages for export
+            messages = []
+            for msg in messages_data:
+                messages.append({
+                    "id": msg[0],
+                    "sender_admin_name": msg[1],
+                    "sender_admin_id": msg[2],
+                    "recipient_username": msg[3],
+                    "recipient_user_id": msg[4],
+                    "message_content": msg[5],
+                    "message_type": msg[6],
+                    "sent_at": msg[7].isoformat() if msg[7] else None,
+                    "delivery_status": msg[8],
+                    "delivery_error": msg[9] or ""
+                })
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"messages": messages})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error exporting messages: {e}")
+        return jsonify({"messages": []})
 
 @app.route("/status")
 def status():
