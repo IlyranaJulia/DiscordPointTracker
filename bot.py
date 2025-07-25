@@ -2466,6 +2466,11 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         else:
             logger.warning(f"No guild context for user {interaction.user.id} email submission")
         
+        # Ensure roles were collected or provide meaningful fallback
+        if not user_roles and interaction.guild:
+            user_roles = ["Member only"]
+            roles_debug_info = "No additional roles - basic member"
+        
         # Store the email with roles (will update if pending, or raise error if processed)
         await store_user_email(str(interaction.user.id), email.strip(), user_roles)
 
@@ -2559,6 +2564,11 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
                 logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
         else:
             logger.warning(f"No guild context for user {interaction.user.id} email update")
+            
+        # Ensure roles were collected or provide meaningful fallback
+        if not user_roles and interaction.guild:
+            user_roles = ["Member only"]
+            roles_debug_info = "No additional roles - basic member"
         
         # Use PostgreSQL instead of SQLite
         await bot.db.initialize()
@@ -2948,13 +2958,47 @@ async def check_email_admin_slash(interaction: discord.Interaction, user: discor
 @app_commands.default_permissions(administrator=True)
 @app_commands.describe(
     user="Discord user to send message to",
-    message="Message content to send"
+    message="Message content to send",
+    message_type="Type of message (general, order_status, error_alert, important)"
 )
-async def send_dm_slash(interaction: discord.Interaction, user: discord.User, message: str):
-    """Admin command to send DM to any user via the bot"""
+@app_commands.choices(message_type=[
+    app_commands.Choice(name="General", value="general"),
+    app_commands.Choice(name="Order Status", value="order_status"),
+    app_commands.Choice(name="Error Alert", value="error_alert"),
+    app_commands.Choice(name="Important Notice", value="important")
+])
+async def send_dm_slash(interaction: discord.Interaction, user: discord.User, message: str, message_type: str = "general"):
+    """Admin command to send DM to any user via the bot with database tracking"""
     try:
+        # Store message in database first
+        await bot.db.initialize()
+        async with bot.db.pool.acquire() as conn:
+            message_id = await conn.fetchval('''
+                INSERT INTO admin_messages (
+                    sender_admin_id, sender_admin_name, recipient_user_id, 
+                    recipient_username, message_content, message_type, delivery_status
+                ) VALUES ($1, $2, $3, $4, $5, $6, 'sending')
+                RETURNING id
+            ''', str(interaction.user.id), interaction.user.display_name, 
+                str(user.id), user.display_name, message, message_type)
+        
         # Send the DM
-        await user.send(f"📢 **Message from {interaction.guild.name} admin:**\n\n{message}")
+        message_prefix = {
+            "general": "📢 **Message from admin:**",
+            "order_status": "📦 **Order Status Update:**",
+            "error_alert": "⚠️ **Alert:**",
+            "important": "🚨 **Important Notice:**"
+        }.get(message_type, "📢 **Message from admin:**")
+        
+        await user.send(f"{message_prefix}\n\n{message}")
+        
+        # Update delivery status
+        async with bot.db.pool.acquire() as conn:
+            await conn.execute('''
+                UPDATE admin_messages 
+                SET delivery_status = 'delivered', sent_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+            ''', message_id)
         
         # Confirm to admin
         embed = discord.Embed(
@@ -2968,25 +3012,138 @@ async def send_dm_slash(interaction: discord.Interaction, user: discord.User, me
             inline=False
         )
         embed.add_field(
-            name="Sent by",
-            value=f"{interaction.user.display_name} ({interaction.user.mention})",
+            name="Message Type",
+            value=message_type.replace('_', ' ').title(),
+            inline=True
+        )
+        embed.add_field(
+            name="Database ID",
+            value=f"#{message_id}",
             inline=True
         )
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
         
         # Log the admin action
-        logger.info(f"Admin {interaction.user.id} ({interaction.user.display_name}) sent DM to user {user.id} ({user.display_name}): {message[:100]}...")
+        logger.info(f"Admin {interaction.user.id} sent {message_type} DM to user {user.id}: Message ID {message_id}")
         
     except discord.Forbidden:
+        # Update delivery status with error
+        try:
+            async with bot.db.pool.acquire() as conn:
+                await conn.execute('''
+                    UPDATE admin_messages 
+                    SET delivery_status = 'failed', delivery_error = 'User has DMs disabled or blocked bot'
+                    WHERE id = $1
+                ''', message_id)
+        except:
+            pass
+            
         await interaction.response.send_message(
             f"❌ Could not send DM to **{user.display_name}**. They may have DMs disabled or blocked the bot.",
             ephemeral=True
         )
     except Exception as e:
+        # Update delivery status with error
+        try:
+            async with bot.db.pool.acquire() as conn:
+                await conn.execute('''
+                    UPDATE admin_messages 
+                    SET delivery_status = 'failed', delivery_error = $1
+                    WHERE id = $2
+                ''', str(e), message_id)
+        except:
+            pass
+            
         logger.error(f"Error in senddm command: {e}")
         await interaction.response.send_message(
             "❌ An error occurred while sending the DM. Please try again later.",
+            ephemeral=True
+        )
+
+@bot.tree.command(name="viewmessages", description="Admin: View sent DM message history")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    user="Optional: Filter by specific user",
+    message_type="Optional: Filter by message type",
+    limit="Number of messages to show (default 10)"
+)
+@app_commands.choices(message_type=[
+    app_commands.Choice(name="All Types", value="all"),
+    app_commands.Choice(name="General", value="general"),
+    app_commands.Choice(name="Order Status", value="order_status"),
+    app_commands.Choice(name="Error Alert", value="error_alert"),
+    app_commands.Choice(name="Important Notice", value="important")
+])
+async def view_messages_slash(interaction: discord.Interaction, user: discord.User = None, message_type: str = "all", limit: int = 10):
+    """Admin command to view DM message history from database"""
+    try:
+        await bot.db.initialize()
+        
+        # Build query based on filters
+        query = '''
+            SELECT id, sender_admin_name, recipient_username, message_content, 
+                   message_type, sent_at, delivery_status, delivery_error
+            FROM admin_messages 
+        '''
+        params = []
+        conditions = []
+        
+        if user:
+            conditions.append("recipient_user_id = $" + str(len(params) + 1))
+            params.append(str(user.id))
+            
+        if message_type and message_type != "all":
+            conditions.append("message_type = $" + str(len(params) + 1))
+            params.append(message_type)
+        
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+            
+        query += " ORDER BY sent_at DESC LIMIT $" + str(len(params) + 1)
+        params.append(limit)
+        
+        async with bot.db.pool.acquire() as conn:
+            messages = await conn.fetch(query, *params)
+        
+        if not messages:
+            embed = discord.Embed(
+                title="📬 No Messages Found",
+                description="No admin messages match your criteria.",
+                color=discord.Color.orange()
+            )
+        else:
+            embed = discord.Embed(
+                title="📬 Admin Message History",
+                description=f"Showing {len(messages)} messages",
+                color=discord.Color.blue()
+            )
+            
+            for msg in messages:
+                msg_id, admin_name, recipient, content, msg_type, sent_at, status, error = msg
+                
+                status_emoji = "✅" if status == "delivered" else "❌" if status == "failed" else "⏳"
+                
+                field_value = f"**To:** {recipient}\n"
+                field_value += f"**Type:** {msg_type.replace('_', ' ').title()}\n"
+                field_value += f"**Status:** {status_emoji} {status.title()}\n"
+                field_value += f"**Content:** {content[:100]}{'...' if len(content) > 100 else ''}\n"
+                if error:
+                    field_value += f"**Error:** {error}\n"
+                field_value += f"**Sent:** {sent_at.strftime('%Y-%m-%d %H:%M')}"
+                
+                embed.add_field(
+                    name=f"Message #{msg_id} by {admin_name}",
+                    value=field_value,
+                    inline=False
+                )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in viewmessages command: {e}")
+        await interaction.response.send_message(
+            "❌ An error occurred while retrieving message history.",
             ephemeral=True
         )
 
