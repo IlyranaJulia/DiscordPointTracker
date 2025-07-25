@@ -2349,15 +2349,27 @@ def send_dm():
             
             # Get Discord user object using integer conversion
             try:
-                discord_user = bot.get_user(int(user_id_str))
+                # Convert to int first for Discord API
+                user_id_int = int(user_id_str)
+                discord_user = bot.get_user(user_id_int)
                 if not discord_user:
                     # Try fetching user if not in cache
-                    discord_user = loop.run_until_complete(bot.fetch_user(int(user_id_str)))
+                    discord_user = loop.run_until_complete(bot.fetch_user(user_id_int))
                 
                 username = discord_user.display_name if discord_user else f"User {user_id_str}"
+                logger.info(f"Successfully found Discord user: {username} ({user_id_str})")
+            except ValueError as e:
+                logger.error(f"Invalid user ID format {user_id_str}: {e}")
+                loop.run_until_complete(db.close())
+                return jsonify({"success": False, "error": f"Invalid user ID format: {user_id_str}"})
+            except discord.NotFound:
+                logger.error(f"Discord user {user_id_str} not found (account may be deleted)")
+                loop.run_until_complete(db.close())
+                return jsonify({"success": False, "error": "User not found on Discord"})
             except Exception as e:
                 logger.error(f"Error getting Discord user {user_id_str}: {e}")
-                username = f"User {user_id_str}"
+                loop.run_until_complete(db.close())
+                return jsonify({"success": False, "error": f"Error finding user: {e}"})
             
             # Store message in database first
             message_id = loop.run_until_complete(db.execute_query('''
