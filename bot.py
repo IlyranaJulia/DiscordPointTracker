@@ -2263,8 +2263,8 @@ async def store_user_email(user_id: int, email: str, roles: list = None):
     
     username = user.display_name if user else f"User {user_id}"
     
-    # Convert roles list to comma-separated string
-    roles_str = ", ".join(roles) if roles else ""
+    # Convert roles list to comma-separated string with fallback
+    roles_str = ", ".join(roles) if roles else "Member only"
     
     # Check if user already has ANY email submission (pending or processed)
     existing_query = '''
@@ -2435,8 +2435,10 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         existing_result = await bot.db.execute_query(existing_query, str(interaction.user.id))
         existing = existing_result[0] if existing_result else None
         
-        # Collect user's server roles
+        # Collect user's server roles with enhanced debugging
         user_roles = []
+        roles_debug_info = "No guild context"
+        
         if interaction.guild:
             try:
                 member = interaction.guild.get_member(interaction.user.id)
@@ -2444,9 +2446,25 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
                     # Get role names (excluding @everyone)
                     role_names = [role.name for role in member.roles if role.name != "@everyone"]
                     user_roles = role_names
-                    logger.info(f"Collected roles for user {interaction.user.id}: {', '.join(role_names)}")
+                    roles_debug_info = f"Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "User has no roles (only @everyone)"
+                else:
+                    roles_debug_info = f"Member not found in guild {interaction.guild.name}"
+                    # Try to fetch member
+                    try:
+                        member = await interaction.guild.fetch_member(interaction.user.id)
+                        if member:
+                            role_names = [role.name for role in member.roles if role.name != "@everyone"]
+                            user_roles = role_names
+                            roles_debug_info = f"Fetched member - Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "Fetched member has no roles (only @everyone)"
+                    except Exception as fetch_error:
+                        roles_debug_info = f"Failed to fetch member: {fetch_error}"
+                        
+                logger.info(f"Role collection for user {interaction.user.id}: {roles_debug_info}")
             except Exception as e:
+                roles_debug_info = f"Error: {e}"
                 logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
+        else:
+            logger.warning(f"No guild context for user {interaction.user.id} email submission")
         
         # Store the email with roles (will update if pending, or raise error if processed)
         await store_user_email(str(interaction.user.id), email.strip(), user_roles)
@@ -2511,8 +2529,10 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
         return
         
     try:
-        # Collect user's current server roles
+        # Collect user's current server roles with enhanced debugging
         user_roles = []
+        roles_debug_info = "No guild context"
+        
         if interaction.guild:
             try:
                 member = interaction.guild.get_member(interaction.user.id)
@@ -2520,9 +2540,25 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
                     # Get role names (excluding @everyone)
                     role_names = [role.name for role in member.roles if role.name != "@everyone"]
                     user_roles = role_names
-                    logger.info(f"Collected updated roles for user {interaction.user.id}: {', '.join(role_names)}")
+                    roles_debug_info = f"Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "User has no roles (only @everyone)"
+                else:
+                    roles_debug_info = f"Member not found in guild {interaction.guild.name}"
+                    # Try to fetch member
+                    try:
+                        member = await interaction.guild.fetch_member(interaction.user.id)
+                        if member:
+                            role_names = [role.name for role in member.roles if role.name != "@everyone"]
+                            user_roles = role_names
+                            roles_debug_info = f"Fetched member - Found {len(role_names)} roles: {', '.join(role_names)}" if role_names else "Fetched member has no roles (only @everyone)"
+                    except Exception as fetch_error:
+                        roles_debug_info = f"Failed to fetch member: {fetch_error}"
+                        
+                logger.info(f"Role collection for user {interaction.user.id} update: {roles_debug_info}")
             except Exception as e:
+                roles_debug_info = f"Error: {e}"
                 logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
+        else:
+            logger.warning(f"No guild context for user {interaction.user.id} email update")
         
         # Use PostgreSQL instead of SQLite
         await bot.db.initialize()
@@ -2907,6 +2943,52 @@ async def check_email_admin_slash(interaction: discord.Interaction, user: discor
     except Exception as e:
         logger.error(f"Error in checkemail admin command: {e}")
         await interaction.response.send_message("❌ An error occurred while checking email status.")
+
+@bot.tree.command(name="senddm", description="Admin: Send a direct message to a user")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    user="Discord user to send message to",
+    message="Message content to send"
+)
+async def send_dm_slash(interaction: discord.Interaction, user: discord.User, message: str):
+    """Admin command to send DM to any user via the bot"""
+    try:
+        # Send the DM
+        await user.send(f"📢 **Message from {interaction.guild.name} admin:**\n\n{message}")
+        
+        # Confirm to admin
+        embed = discord.Embed(
+            title="✅ DM Sent Successfully",
+            description=f"Message sent to **{user.display_name}** ({user.mention})",
+            color=discord.Color.green()
+        )
+        embed.add_field(
+            name="Message Content",
+            value=message[:1000] + ("..." if len(message) > 1000 else ""),
+            inline=False
+        )
+        embed.add_field(
+            name="Sent by",
+            value=f"{interaction.user.display_name} ({interaction.user.mention})",
+            inline=True
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Log the admin action
+        logger.info(f"Admin {interaction.user.id} ({interaction.user.display_name}) sent DM to user {user.id} ({user.display_name}): {message[:100]}...")
+        
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            f"❌ Could not send DM to **{user.display_name}**. They may have DMs disabled or blocked the bot.",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in senddm command: {e}")
+        await interaction.response.send_message(
+            "❌ An error occurred while sending the DM. Please try again later.",
+            ephemeral=True
+        )
 
 # Web Interface with admin dashboard continues below...
 # All old prefix commands have been replaced with modern slash commands above
