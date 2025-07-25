@@ -2511,34 +2511,49 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
         return
         
     try:
-        async with aiosqlite.connect(bot.db.db_path) as db:
-            # Check if user has an existing submission
-            cursor = await db.execute('''
-                SELECT id, email_address FROM email_submissions 
-                WHERE discord_user_id = ? AND status = 'pending'
-            ''', (str(interaction.user.id),))
-            
-            existing = await cursor.fetchone()
-            
-            if not existing:
-                await interaction.response.send_message(
-                    "❌ No email submission found. Use `/submitemail` first.",
-                    ephemeral=True
-                )
-                return
-            
-            submission_id, old_email = existing
-            new_email = email.strip().lower()
-            
-            # Update the email address
-            await db.execute('''
+        # Collect user's current server roles
+        user_roles = []
+        if interaction.guild:
+            try:
+                member = interaction.guild.get_member(interaction.user.id)
+                if member:
+                    # Get role names (excluding @everyone)
+                    role_names = [role.name for role in member.roles if role.name != "@everyone"]
+                    user_roles = role_names
+                    logger.info(f"Collected updated roles for user {interaction.user.id}: {', '.join(role_names)}")
+            except Exception as e:
+                logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
+        
+        # Use PostgreSQL instead of SQLite
+        await bot.db.initialize()
+        
+        # Check if user has an existing submission using PostgreSQL
+        existing_query = '''
+            SELECT id, email_address FROM email_submissions 
+            WHERE discord_user_id = $1 AND status = 'pending'
+        '''
+        existing_result = await bot.db.execute_query(existing_query, str(interaction.user.id))
+        existing = existing_result[0] if existing_result else None
+        
+        if not existing:
+            await interaction.response.send_message(
+                "❌ No email submission found. Use `/submitemail` first.",
+                ephemeral=True
+            )
+            return
+        
+        submission_id, old_email = existing
+        new_email = email.strip().lower()
+        
+        # Update the email address and server roles using PostgreSQL
+        async with bot.db.pool.acquire() as conn:
+            await conn.execute('''
                 UPDATE email_submissions 
-                SET email_address = ?, submitted_at = CURRENT_TIMESTAMP,
-                    admin_notes = COALESCE(admin_notes, '') || 'Updated from: ' || ? || ' | '
-                WHERE id = ?
-            ''', (new_email, old_email, submission_id))
-            
-            await db.commit()
+                SET email_address = $1, submitted_at = CURRENT_TIMESTAMP,
+                    server_roles = $2,
+                    admin_notes = COALESCE(admin_notes, '') || 'Updated from: ' || $3 || ' | '
+                WHERE id = $4
+            ''', new_email, ', '.join(user_roles) if user_roles else 'Member only', old_email, submission_id)
             
             await interaction.response.send_message(
                 f"✅ Email updated successfully from `{old_email}` to `{new_email}`",
@@ -2846,16 +2861,17 @@ async def recent_achievements_slash(interaction: discord.Interaction):
 async def check_email_admin_slash(interaction: discord.Interaction, user: discord.User):
     """Admin command to check any user's email submission status"""
     try:
-        async with aiosqlite.connect(bot.db.db_path) as db:
-            # Get all submissions for the specified user
-            cursor = await db.execute('''
-                SELECT id, email_address, submitted_at, status, processed_at, admin_notes
+        # Use PostgreSQL instead of SQLite
+        await bot.db.initialize()
+        
+        # Get all submissions for the specified user using PostgreSQL
+        async with bot.db.pool.acquire() as conn:
+            submissions = await conn.fetch('''
+                SELECT id, email_address, submitted_at, status, processed_at, admin_notes, server_roles
                 FROM email_submissions 
-                WHERE discord_user_id = ?
+                WHERE discord_user_id = $1
                 ORDER BY submitted_at DESC
-            ''', (user.id,))
-            
-            submissions = await cursor.fetchall()
+            ''', str(user.id))
             
         embed = discord.Embed(
             title=f"📧 Email Status for {user.display_name}",
@@ -2871,7 +2887,8 @@ async def check_email_admin_slash(interaction: discord.Interaction, user: discor
             )
         else:
             for i, submission in enumerate(submissions):
-                sub_id, email, submitted_at, status, processed_at, admin_notes = submission
+                sub_id, email, submitted_at, status, processed_at, admin_notes = submission[:6]  # Handle variable length tuples
+                server_roles = submission[6] if len(submission) > 6 else 'Not collected'
                 
                 status_emoji = "✅" if status == 'processed' else "⏳" if status == 'pending' else "❌"
                 

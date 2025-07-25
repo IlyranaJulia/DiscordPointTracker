@@ -50,6 +50,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Database Structure Optimization**: Streamlined dashboard from 6 sections to 3 focused sections (Overview, User Management, Email Submissions)
 - **Automatic Achievement Integration**: Points management now automatically checks and awards achievements when users reach milestones
 - **Points System Restoration (2025-07-25)**: Completely restored points system integrity after achievement system caused severe data corruption - cleared 185 erroneous achievement transactions, restored original balances from CSV backup for all 41 users, total points corrected to authentic 39,761
+- **Server Role Collection Fix (2025-07-25)**: Fixed server role collection in both `/submitemail` and `/updateemail` commands - new email submissions now properly collect and store user's Discord server roles, resolved PostgreSQL compatibility issues in admin commands
 ### Major Updates
 - **Complete Slash Commands Conversion**: All prefix commands (!) converted to modern Discord slash commands (/)
 - **Code Cleanup**: Removed duplicate Python files (bot_backup.py, test_order_system.py, order_processor_simple.py)
