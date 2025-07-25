@@ -3065,7 +3065,7 @@ def send_admin_notification_dm_sync(user_id, message_content, message_type="gene
             await bot.db.initialize()
             async with bot.db.pool.acquire() as conn:
                 message_id = await conn.fetchval('''
-                    INSERT INTO admin_messages (user_id, message_content, message_type, sent_at)
+                    INSERT INTO admin_messages (recipient_user_id, message_content, message_type, sent_at)
                     VALUES ($1, $2, $3, $4)
                     RETURNING id
                 ''', str(user_id), message_content, message_type, datetime.now())
