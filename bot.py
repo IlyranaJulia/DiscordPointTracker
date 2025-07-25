@@ -748,16 +748,18 @@ def dashboard():
                 html += '</div></div>';
                 
                 html += '<table><thead><tr>';
-                html += '<th style="width: 40px;">Select</th><th>Discord User</th><th>User ID</th><th>Email</th><th>Status</th>';
+                html += '<th style="width: 40px;">Select</th><th>Discord User</th><th>User ID</th><th>Email</th><th>Server Roles</th><th>Status</th>';
                 html += '<th>Submitted</th><th>Actions</th></tr></thead><tbody>';
                 
                 submissions.forEach(sub => {
                     const statusColor = sub.status === 'pending' ? '#ffc107' : '#28a745';
+                    const serverRoles = sub.server_roles || 'No roles';
                     html += '<tr>';
                     html += '<td><input type="checkbox" class="submission-checkbox" value="' + sub.id + '" onchange="updateSelectedCount()"></td>';
                     html += '<td><strong>' + sub.discord_username + '</strong></td>';
                     html += '<td><code style="font-size: 11px;">' + sub.discord_user_id + '</code></td>';
                     html += '<td><strong>' + sub.email_address + '</strong></td>';
+                    html += '<td style="font-size: 11px; max-width: 200px; word-wrap: break-word;"><span style="color: #6366f1; font-weight: 500;">' + serverRoles + '</span></td>';
                     html += '<td><span style="background: ' + statusColor + '; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">' + sub.status.toUpperCase() + '</span></td>';
                     html += '<td style="font-size: 12px;">' + new Date(sub.submitted_at).toLocaleString() + '</td>';
                     html += '<td>';
