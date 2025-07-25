@@ -2951,10 +2951,10 @@ def send_admin_notification_dm_sync(user_id, message_content, message_type="gene
             await bot.db.initialize()
             async with bot.db.pool.acquire() as conn:
                 message_id = await conn.fetchval('''
-                    INSERT INTO admin_messages (recipient_user_id, message_content, message_type, sent_at)
-                    VALUES ($1, $2, $3, $4)
+                    INSERT INTO admin_messages (sender_admin_id, sender_admin_name, recipient_user_id, message_content, message_type, sent_at)
+                    VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING id
-                ''', str(user_id), message_content, message_type, datetime.now())
+                ''', "0", "Dashboard Admin", str(user_id), message_content, message_type, datetime.now())
                 
                 # Try to send DM
                 delivery_status = "pending"
