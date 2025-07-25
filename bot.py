@@ -1828,7 +1828,7 @@ def process_email_submission():
             
             # Send DM notification about email processing
             notification_message = f"✅ **Email Processed**\n\nYour email submission **{user_email}** has been processed by an admin.\n\n📧 Status: **Completed**\n🕒 Processed at: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**"
-            loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "email_processed"))
+            send_admin_notification_dm_sync(user_id, notification_message, "email_processed")
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -1886,7 +1886,7 @@ def delete_email_submission():
             # Send DM notification about email deletion
             from datetime import datetime
             notification_message = f"🗑️ **Email Submission Removed**\n\nYour email submission **{user_email}** has been removed by an admin.\n\n📧 Previous Status: **{status.title()}**\n🕒 Removed at: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**\n\n💡 You can submit a new email using `/submitemail` if needed."
-            loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "email_deleted"))
+            send_admin_notification_dm_sync(user_id, notification_message, "email_deleted")
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -2132,7 +2132,7 @@ def set_user_points():
             # Send DM notification if successful
             if success:
                 notification_message = f"🔄 **Points Updated**\n\nYour points have been set to **{points:,} points**.\n\n📝 **Reason:** {reason or 'Admin adjustment'}"
-                loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "points_update"))
+                send_admin_notification_dm_sync(user_id, notification_message, "points_update")
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -2192,7 +2192,7 @@ def process_user_email():
             
             # Send DM notification about email processing
             notification_message = f"✅ **Email Processed**\n\nYour email submission **{user_email}** has been processed by an admin.\n\n📧 Status: **Completed**\n🕒 Processed at: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**"
-            loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "email_processed"))
+            send_admin_notification_dm_sync(user_id, notification_message, "email_processed")
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -3032,6 +3032,24 @@ class PointsBot(commands.Bot):
 bot = PointsBot()
 
 # Function to store user email (for the privacy slash command)
+def send_admin_notification_dm_sync(user_id, message_content, message_type="general"):
+    """Synchronous wrapper for sending DM notifications from Flask routes"""
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        async def send_dm_wrapper():
+            return await send_admin_notification_dm(user_id, message_content, message_type)
+        
+        result = loop.run_until_complete(send_dm_wrapper())
+        return result
+    except Exception as e:
+        logger.error(f"Error in sync DM wrapper: {e}")
+        return False
+    finally:
+        loop.close()
+
 async def send_admin_notification_dm(user_id, message_content, message_type="general"):
     """Send DM notification to a user and store in admin_messages table"""
     try:
