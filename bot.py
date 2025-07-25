@@ -3038,14 +3038,65 @@ bot = PointsBot()
 def send_admin_notification_dm_sync(user_id, message_content, message_type="general"):
     """Synchronous wrapper for sending DM notifications from Flask routes"""
     import asyncio
+    from datetime import datetime
+    
+    async def send_dm_async():
+        """Internal async function to handle DM sending"""
+        try:
+            # Convert user_id to int for Discord API
+            discord_user_id = int(user_id)
+            user = bot.get_user(discord_user_id)
+            
+            if not user:
+                try:
+                    user = await bot.fetch_user(discord_user_id)
+                    logger.info(f"Successfully fetched user {user_id} for notification")
+                except Exception as e:
+                    logger.error(f"Error fetching user {user_id}: {e}")
+                    return False
+            
+            # Store message in database first
+            await bot.db.initialize()
+            async with bot.db.pool.acquire() as conn:
+                message_id = await conn.fetchval('''
+                    INSERT INTO admin_messages (user_id, message_content, message_type, sent_at)
+                    VALUES ($1, $2, $3, $4)
+                    RETURNING id
+                ''', str(user_id), message_content, message_type, datetime.now())
+                
+                # Try to send DM
+                delivery_status = "pending"
+                delivery_error = None
+                
+                try:
+                    await user.send(message_content)
+                    delivery_status = "delivered"
+                    logger.info(f"✅ DM sent successfully to user {user_id}")
+                except Exception as dm_error:
+                    delivery_status = "failed"
+                    delivery_error = str(dm_error)
+                    logger.error(f"❌ Failed to send DM to user {user_id}: {dm_error}")
+                
+                # Update delivery status
+                await conn.execute('''
+                    UPDATE admin_messages 
+                    SET delivery_status = $1, delivery_error = $2, delivered_at = $3
+                    WHERE id = $4
+                ''', delivery_status, delivery_error, 
+                datetime.now() if delivery_status == "delivered" else None, message_id)
+                
+                return delivery_status == "delivered"
+                
+        except Exception as e:
+            logger.error(f"Error in DM notification: {e}")
+            return False
+    
+    # Run in new event loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
     try:
-        async def send_dm_wrapper():
-            return await send_admin_notification_dm(user_id, message_content, message_type)
-        
-        result = loop.run_until_complete(send_dm_wrapper())
+        result = loop.run_until_complete(send_dm_async())
         return result
     except Exception as e:
         logger.error(f"Error in sync DM wrapper: {e}")
