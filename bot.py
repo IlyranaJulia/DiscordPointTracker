@@ -1866,9 +1866,27 @@ def delete_email_submission():
             # Initialize database connection
             loop.run_until_complete(db.initialize())
             
+            # Get email details before deletion for notification
+            get_query = '''
+                SELECT discord_user_id, email_address, status FROM email_submissions 
+                WHERE id = $1
+            '''
+            email_result = loop.run_until_complete(db.execute_query(get_query, submission_id))
+            
+            if not email_result:
+                loop.run_until_complete(db.close())
+                return jsonify({"success": False, "error": "Email submission not found"})
+            
+            user_id, user_email, status = email_result[0]
+            
             # Delete submission
             delete_query = 'DELETE FROM email_submissions WHERE id = $1'
             result = loop.run_until_complete(db.execute_query(delete_query, submission_id))
+            
+            # Send DM notification about email deletion
+            from datetime import datetime
+            notification_message = f"🗑️ **Email Submission Removed**\n\nYour email submission **{user_email}** has been removed by an admin.\n\n📧 Previous Status: **{status.title()}**\n🕒 Removed at: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**\n\n💡 You can submit a new email using `/submitemail` if needed."
+            loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "email_deleted"))
             
             # Close database connection
             loop.run_until_complete(db.close())
