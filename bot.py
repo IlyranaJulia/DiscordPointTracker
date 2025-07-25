@@ -1361,7 +1361,8 @@ def get_email_submissions():
                     'submitted_at': row[4].isoformat() if row[4] else None,
                     'status': row[5],
                     'processed_at': row[6].isoformat() if row[6] else None,
-                    'admin_notes': row[7]
+                    'admin_notes': row[7],
+                    'server_roles': row[8] if len(row) > 8 else ""
                 })
             
             # Get submission statistics
@@ -1812,10 +1813,10 @@ def update_user_profile():
                 # Create new email submission if email is provided
                 if email:
                     insert_query = '''
-                        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, status, submitted_at)
-                        VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)
+                        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, server_roles, status, submitted_at)
+                        VALUES ($1, $2, $3, $4, 'pending', CURRENT_TIMESTAMP)
                     '''
-                    loop.run_until_complete(db.execute_query(insert_query, user_id, username, email))
+                    loop.run_until_complete(db.execute_query(insert_query, user_id, username, email, ""))
                     message = "User profile created with email submission"
                 else:
                     # For username-only updates, we could store in a separate table or just return success
@@ -2141,8 +2142,8 @@ class PointsBot(commands.Bot):
 bot = PointsBot()
 
 # Function to store user email (for the privacy slash command)
-async def store_user_email(user_id: int, email: str):
-    """Store user email in database - only one pending submission per user"""
+async def store_user_email(user_id: int, email: str, roles: list = None):
+    """Store user email and server roles in database - only one pending submission per user"""
     # Use the bot's PostgreSQL database connection
     await bot.db.initialize()
     
@@ -2155,6 +2156,9 @@ async def store_user_email(user_id: int, email: str):
             pass
     
     username = user.display_name if user else f"User {user_id}"
+    
+    # Convert roles list to comma-separated string
+    roles_str = ", ".join(roles) if roles else ""
     
     # Check if user already has ANY email submission (pending or processed)
     existing_query = '''
@@ -2173,18 +2177,18 @@ async def store_user_email(user_id: int, email: str):
             # Update existing pending submission
             update_query = '''
                 UPDATE email_submissions 
-                SET email_address = $1, discord_username = $2, submitted_at = CURRENT_TIMESTAMP
-                WHERE id = $3
+                SET email_address = $1, discord_username = $2, server_roles = $3, submitted_at = CURRENT_TIMESTAMP
+                WHERE id = $4
             '''
-            await bot.db.execute_query(update_query, email, username, submission_id)
+            await bot.db.execute_query(update_query, email, username, roles_str, submission_id)
             return f"updated_existing_{submission_id}"
     
     # Insert new submission
     insert_query = '''
-        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, status)
-        VALUES ($1, $2, $3, 'pending')
+        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, server_roles, status)
+        VALUES ($1, $2, $3, $4, 'pending')
     '''
-    await bot.db.execute_query(insert_query, user_id, username, email)
+    await bot.db.execute_query(insert_query, user_id, username, email, roles_str)
     return "new_submission"
 
 # Slash Commands
@@ -2324,8 +2328,21 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         existing_result = await bot.db.execute_query(existing_query, str(interaction.user.id))
         existing = existing_result[0] if existing_result else None
         
-        # Store the email (will update if pending, or raise error if processed)
-        await store_user_email(str(interaction.user.id), email.strip())
+        # Collect user's server roles
+        user_roles = []
+        if interaction.guild:
+            try:
+                member = interaction.guild.get_member(interaction.user.id)
+                if member:
+                    # Get role names (excluding @everyone)
+                    role_names = [role.name for role in member.roles if role.name != "@everyone"]
+                    user_roles = role_names
+                    logger.info(f"Collected roles for user {interaction.user.id}: {', '.join(role_names)}")
+            except Exception as e:
+                logger.error(f"Error collecting roles for user {interaction.user.id}: {e}")
+        
+        # Store the email with roles (will update if pending, or raise error if processed)
+        await store_user_email(str(interaction.user.id), email.strip(), user_roles)
 
         if existing:
             old_email, status = existing
@@ -2445,7 +2462,7 @@ async def myemail_slash(interaction: discord.Interaction):
         async with bot.db.pool.acquire() as conn:
             # Get all submissions for this user to see the full picture
             submissions = await conn.fetch('''
-                SELECT id, email_address, submitted_at, status, processed_at
+                SELECT id, email_address, submitted_at, status, processed_at, server_roles
                 FROM email_submissions 
                 WHERE discord_user_id = $1
                 ORDER BY submitted_at DESC
@@ -2459,7 +2476,7 @@ async def myemail_slash(interaction: discord.Interaction):
             
             # Debug logging to track what we found
             if submission:
-                sub_id, email, submitted_at, status, processed_at = submission
+                sub_id, email, submitted_at, status, processed_at = submission[:5]  # Handle variable length tuples
                 logger.info(f"User {interaction.user.id} latest submission: ID={sub_id}, Email={email}, Status={status}, Processed={processed_at}")
             else:
                 logger.info(f"User {interaction.user.id} has no email submissions in database")

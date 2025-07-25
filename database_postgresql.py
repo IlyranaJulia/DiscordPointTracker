@@ -290,7 +290,7 @@ class PostgreSQLPointsDatabase:
             async with self.pool.acquire() as conn:
                 rows = await conn.fetch('''
                     SELECT id, discord_user_id, discord_username, email_address, 
-                           submitted_at, status, processed_at, admin_notes
+                           submitted_at, status, processed_at, admin_notes, server_roles
                     FROM email_submissions 
                     ORDER BY submitted_at DESC
                 ''')

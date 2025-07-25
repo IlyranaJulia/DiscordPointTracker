@@ -37,6 +37,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Manual Profile Management**: Admins can manually add/edit usernames and email addresses for users with points
 - **Real-time Data Synchronization**: All changes reflect immediately across dashboard sections and Discord commands
 - **Enhanced User Experience**: Users can check manually added emails via `/myemail` command with full data consistency
+- **Server Roles Collection**: Automatically collect and store user's Discord server roles when they submit email addresses for enhanced user profiling and community analysis
 
 ### User Experience Improvements (2025-07-25)
 - **Pointsboard Enhancement**: Fixed /pointsboard command to show Discord usernames instead of user IDs
