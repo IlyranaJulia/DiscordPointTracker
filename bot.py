@@ -134,15 +134,54 @@ def dashboard():
         <div class="container">
             <div class="nav">
                 <a href="/" >← Home</a>
-                <a href="#" onclick="showSection('emails')" class="active">Email Submissions</a>
+                <a href="#" onclick="showSection('users')" class="active">User Management</a>
+                <a href="#" onclick="showSection('emails')">Email Submissions</a>
                 <a href="#" onclick="showSection('points')">Points Management</a>
                 <a href="#" onclick="showSection('database')">Database Admin</a>
                 <a href="#" onclick="showSection('achievements')">Achievements</a>
                 <a href="#" onclick="showSection('analytics')">Analytics</a>
             </div>
             
+            <!-- User Management Section -->
+            <div id="users-section">
+                <div class="card">
+                    <h3>👥 User Management</h3>
+                    <p>Unified management of users, points, and email submissions with search functionality</p>
+                    
+                    <div class="form-group">
+                        <label for="user-search">🔍 Search Users (by Username, Email, or User ID):</label>
+                        <input type="text" id="user-search" placeholder="Enter username, email, or user ID..." onkeyup="searchUsers()" style="margin-bottom: 10px;">
+                        <button onclick="loadUsers()" class="refresh-btn">🔄 Refresh Users</button>
+                        <button onclick="exportUsers()" class="export-btn">📥 Export Users</button>
+                    </div>
+                    
+                    <div class="stats-grid" style="margin: 20px 0;">
+                        <div class="stat-box">
+                            <div class="stat-number" id="total-users-count">-</div>
+                            <div>Total Users</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="users-with-email">-</div>
+                            <div>Users with Email</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="users-with-points">-</div>
+                            <div>Users with Points</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number" id="total-points-distributed">-</div>
+                            <div>Total Points</div>
+                        </div>
+                    </div>
+                    
+                    <div id="users-container">
+                        <div class="loading">Loading users...</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Email Submissions Section -->
-            <div id="emails-section">
+            <div id="emails-section" class="hidden">
                 <div class="card">
                     <h3>📧 Email Submissions Management</h3>
                     <p>Manage user email submissions for order verification and point distribution</p>
@@ -304,7 +343,9 @@ def dashboard():
                 event.target.classList.add('active');
                 
                 // Load data for the selected section
-                if (section === 'emails') {
+                if (section === 'users') {
+                    loadUsers();
+                } else if (section === 'emails') {
                     loadEmailSubmissions();
                 } else if (section === 'database') {
                     loadTransactions();
@@ -327,9 +368,9 @@ def dashboard():
                 });
             }
             
-            // Load initial stats and email submissions on page load
+            // Load initial stats and users on page load (users section is default)
             refreshStats();
-            loadEmailSubmissions();
+            loadUsers();
             
             function loadTransactions() {
                 fetch('/api/recent_transactions')
@@ -456,6 +497,170 @@ def dashboard():
                     }
                 });
             });
+
+            // User Management Functions
+            let allUsers = [];
+            
+            async function loadUsers() {
+                try {
+                    const response = await fetch('/api/users');
+                    const data = await response.json();
+                    allUsers = data.users || [];
+                    
+                    // Update stats
+                    document.getElementById('total-users-count').textContent = data.stats.total_users || 0;
+                    document.getElementById('users-with-email').textContent = data.stats.users_with_email || 0;
+                    document.getElementById('users-with-points').textContent = data.stats.users_with_points || 0;
+                    document.getElementById('total-points-distributed').textContent = data.stats.total_points || 0;
+                    
+                    displayUsers(allUsers);
+                } catch (error) {
+                    console.error('Error loading users:', error);
+                    document.getElementById('users-container').innerHTML = '<div style="color: red;">Error loading users</div>';
+                }
+            }
+
+            function searchUsers() {
+                const searchTerm = document.getElementById('user-search').value.toLowerCase().trim();
+                
+                if (!searchTerm) {
+                    displayUsers(allUsers);
+                    return;
+                }
+                
+                const filteredUsers = allUsers.filter(user => {
+                    return (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+                           (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+                           (user.user_id && user.user_id.includes(searchTerm));
+                });
+                
+                displayUsers(filteredUsers);
+            }
+
+            function displayUsers(users) {
+                const container = document.getElementById('users-container');
+                
+                if (!users || users.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No users found</div>';
+                    return;
+                }
+
+                let html = '<table><thead><tr>';
+                html += '<th>Discord User</th><th>User ID</th><th>Points</th><th>Email</th>';
+                html += '<th>Email Status</th><th>Actions</th></tr></thead><tbody>';
+                
+                users.forEach(user => {
+                    const emailStatusColor = user.email_status === 'pending' ? '#ffc107' : user.email_status === 'processed' ? '#28a745' : '#6c757d';
+                    const emailDisplay = user.email || 'No email';
+                    
+                    html += '<tr>';
+                    html += '<td><strong>' + (user.username || 'Unknown') + '</strong></td>';
+                    html += '<td><code style="font-size: 11px;">' + user.user_id + '</code></td>';
+                    html += '<td><strong>' + (user.points || 0).toLocaleString() + '</strong></td>';
+                    html += '<td>' + emailDisplay + '</td>';
+                    html += '<td>';
+                    if (user.email) {
+                        html += '<span style="background: ' + emailStatusColor + '; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">' + (user.email_status || 'unknown').toUpperCase() + '</span>';
+                    } else {
+                        html += '<span style="color: #6c757d;">No Email</span>';
+                    }
+                    html += '</td>';
+                    html += '<td>';
+                    html += '<button onclick="editUser(' + "'" + user.user_id + "'" + ')" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Edit</button>';
+                    if (user.email && user.email_status === 'pending') {
+                        html += '<button onclick="processUserEmail(' + "'" + user.user_id + "'" + ')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✓ Process Email</button>';
+                    }
+                    html += '</td>';
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            }
+
+            async function editUser(userId) {
+                const user = allUsers.find(u => u.user_id === userId);
+                if (!user) {
+                    alert('User not found');
+                    return;
+                }
+                
+                const newPoints = prompt('Set points for ' + (user.username || 'User ' + userId) + ':', user.points || 0);
+                if (newPoints === null) return;
+                
+                const points = parseInt(newPoints);
+                if (isNaN(points) || points < 0) {
+                    alert('Please enter a valid number of points (0 or greater)');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/set_user_points', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: userId,
+                            points: points,
+                            reason: 'Admin set via user management'
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadUsers();
+                        alert('Points updated successfully!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function processUserEmail(userId) {
+                const user = allUsers.find(u => u.user_id === userId);
+                if (!user || !user.email) {
+                    alert('User or email not found');
+                    return;
+                }
+                
+                if (!confirm('Mark email as processed for ' + (user.username || 'User ' + userId) + '?')) return;
+                
+                try {
+                    const response = await fetch('/api/process_user_email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: userId })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadUsers();
+                        alert('Email processed successfully!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function exportUsers() {
+                try {
+                    const response = await fetch('/api/export_users');
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'users_export_' + new Date().toISOString().split('T')[0] + '.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    alert('Error exporting users: ' + error.message);
+                }
+            }
 
             // Email submissions functions
             async function loadEmailSubmissions() {
@@ -1345,6 +1550,175 @@ def bulk_email_action():
             
     except Exception as e:
         logger.error(f"Error in bulk email action: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/users")
+def api_users():
+    """API endpoint for unified user management"""
+    try:
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get combined user data with points and email info
+            query = '''
+                SELECT 
+                    COALESCE(p.user_id, es.discord_user_id) as user_id,
+                    p.balance as points,
+                    es.email_address,
+                    es.status as email_status,
+                    es.discord_username
+                FROM points p
+                FULL OUTER JOIN email_submissions es ON p.user_id = es.discord_user_id
+                ORDER BY COALESCE(p.balance, 0) DESC
+            '''
+            
+            users_data = loop.run_until_complete(db.execute_query(query))
+            
+            # Format users for API response
+            users = []
+            for user in users_data:
+                users.append({
+                    "user_id": user[0],
+                    "points": user[1] or 0,
+                    "email": user[2],
+                    "email_status": user[3],
+                    "username": user[4] or f"User {user[0]}"
+                })
+            
+            # Get statistics
+            stats_queries = {
+                'total_users': 'SELECT COUNT(DISTINCT COALESCE(p.user_id, es.discord_user_id)) FROM points p FULL OUTER JOIN email_submissions es ON p.user_id = es.discord_user_id',
+                'users_with_email': 'SELECT COUNT(*) FROM email_submissions',
+                'users_with_points': 'SELECT COUNT(*) FROM points',
+                'total_points': 'SELECT COALESCE(SUM(balance), 0) FROM points'
+            }
+            
+            stats = {}
+            for key, query in stats_queries.items():
+                result = loop.run_until_complete(db.execute_query(query))
+                stats[key] = result[0][0] if result and result[0] else 0
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({
+                "success": True,
+                "users": users,
+                "stats": stats
+            })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting users: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "users": [],
+            "stats": {"total_users": 0, "users_with_email": 0, "users_with_points": 0, "total_points": 0}
+        })
+
+@app.route("/api/set_user_points", methods=["POST"])
+def set_user_points():
+    """API endpoint for setting user points"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id = data.get('user_id')
+        points = data.get('points')
+        reason = data.get('reason', 'Admin set points')
+        
+        if not user_id or points is None:
+            return jsonify({"success": False, "error": "Missing user_id or points"})
+        
+        try:
+            points = int(points)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid points format"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Set user points
+            success = loop.run_until_complete(db.set_points(user_id, points, admin_id=None, reason=reason))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            if success:
+                return jsonify({"success": True, "message": f"Points set to {points} for user {user_id}"})
+            else:
+                return jsonify({"success": False, "error": "Failed to set points"})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error setting user points: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/process_user_email", methods=["POST"])
+def process_user_email():
+    """API endpoint for processing user email"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "Missing user_id"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Update email status to processed
+            query = '''
+                UPDATE email_submissions 
+                SET status = 'processed', processed_at = CURRENT_TIMESTAMP 
+                WHERE discord_user_id = $1 AND status = 'pending'
+            '''
+            
+            result = loop.run_until_complete(db.execute_query(query, user_id))
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({"success": True, "message": f"Email processed for user {user_id}"})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error processing user email: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/clear_processed_emails", methods=["POST"])
