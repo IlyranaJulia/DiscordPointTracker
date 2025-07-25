@@ -3043,12 +3043,18 @@ def send_admin_notification_dm_sync(user_id, message_content, message_type="gene
     async def send_dm_async():
         """Internal async function to handle DM sending"""
         try:
+            # Check if bot is ready
+            if not bot.is_ready():
+                logger.error(f"Bot not ready for DM to user {user_id}")
+                return False
+                
             # Convert user_id to int for Discord API
             discord_user_id = int(user_id)
             user = bot.get_user(discord_user_id)
             
             if not user:
                 try:
+                    # Set the bot's event loop context
                     user = await bot.fetch_user(discord_user_id)
                     logger.info(f"Successfully fetched user {user_id} for notification")
                 except Exception as e:
@@ -3091,18 +3097,25 @@ def send_admin_notification_dm_sync(user_id, message_content, message_type="gene
             logger.error(f"Error in DM notification: {e}")
             return False
     
-    # Run in new event loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
+    # Use bot's existing event loop if available
     try:
-        result = loop.run_until_complete(send_dm_async())
-        return result
+        if bot.loop and not bot.loop.is_closed():
+            # Use bot's existing loop
+            future = asyncio.run_coroutine_threadsafe(send_dm_async(), bot.loop)
+            result = future.result(timeout=30)  # 30 second timeout
+            return result
+        else:
+            # Fallback to new event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(send_dm_async())
+                return result
+            finally:
+                loop.close()
     except Exception as e:
         logger.error(f"Error in sync DM wrapper: {e}")
         return False
-    finally:
-        loop.close()
 
 async def send_admin_notification_dm(user_id, message_content, message_type="general"):
     """Send DM notification to a user and store in admin_messages table"""
