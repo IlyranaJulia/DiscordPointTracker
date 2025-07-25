@@ -2992,8 +2992,15 @@ async def send_admin_notification_dm(user_id, message_content, message_type="gen
         if not user:
             try:
                 user = await bot.fetch_user(discord_user_id)
-            except:
-                logger.error(f"Could not find user {user_id} for notification")
+                logger.info(f"Successfully fetched user {user_id} for notification")
+            except discord.NotFound:
+                logger.error(f"User {user_id} not found on Discord (account may be deleted)")
+                return False
+            except discord.Forbidden:
+                logger.error(f"No permission to fetch user {user_id}")
+                return False
+            except Exception as e:
+                logger.error(f"Error fetching user {user_id}: {e}")
                 return False
         
         # Store message in database first
@@ -3023,6 +3030,8 @@ async def send_admin_notification_dm(user_id, message_content, message_type="gen
         
         # Try to send the DM
         try:
+            # Also try sending a simple test message first to debug
+            logger.info(f"Attempting to send DM to user {user_id} ({user.display_name})")
             await user.send(embed=embed)
             
             # Update delivery status to delivered
@@ -3033,7 +3042,7 @@ async def send_admin_notification_dm(user_id, message_content, message_type="gen
                     WHERE id = $1
                 ''', message_id)
             
-            logger.info(f"Auto DM sent successfully to user {user_id}: {message_type}")
+            logger.info(f"Auto DM sent successfully to user {user_id} ({user.display_name}): {message_type}")
             return True
             
         except discord.Forbidden:
@@ -3045,7 +3054,19 @@ async def send_admin_notification_dm(user_id, message_content, message_type="gen
                     WHERE id = $1
                 ''', message_id)
             
-            logger.warning(f"Could not send auto DM to user {user_id}: DMs disabled")
+            logger.warning(f"Could not send auto DM to user {user_id} ({user.display_name}): DMs disabled or bot blocked")
+            return False
+            
+        except discord.HTTPException as e:
+            # Update delivery status with error  
+            async with bot.db.pool.acquire() as conn:
+                await conn.execute('''
+                    UPDATE admin_messages 
+                    SET delivery_status = 'failed', delivery_error = $2
+                    WHERE id = $1
+                ''', message_id, f"HTTP error: {e}")
+            
+            logger.error(f"HTTP error sending DM to user {user_id}: {e}")
             return False
             
     except Exception as e:
