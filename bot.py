@@ -2828,8 +2828,10 @@ def get_bulk_template():
 
 class PointsBot(commands.Bot):
     def __init__(self):
+        # Use minimal intents to avoid permission issues
         intents = discord.Intents.default()
-        intents.message_content = True
+        # intents.message_content = True  # Privileged intent disabled to avoid permission errors
+        # intents.members = True  # Privileged intent disabled to avoid permission errors
         
         super().__init__(
             command_prefix=Config.COMMAND_PREFIX,
