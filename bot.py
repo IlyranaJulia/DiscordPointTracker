@@ -1805,6 +1805,19 @@ def process_email_submission():
             # Initialize database connection
             loop.run_until_complete(db.initialize())
             
+            # Get email details before processing for notification
+            get_query = '''
+                SELECT discord_user_id, email_address FROM email_submissions 
+                WHERE id = $1
+            '''
+            email_result = loop.run_until_complete(db.execute_query(get_query, submission_id))
+            
+            if not email_result:
+                loop.run_until_complete(db.close())
+                return jsonify({"success": False, "error": "Email submission not found"})
+            
+            user_id, user_email = email_result[0]
+            
             # Mark submission as processed
             update_query = '''
                 UPDATE email_submissions 
@@ -1812,6 +1825,10 @@ def process_email_submission():
                 WHERE id = $1
             '''
             result = loop.run_until_complete(db.execute_query(update_query, submission_id))
+            
+            # Send DM notification about email processing
+            notification_message = f"✅ **Email Processed**\n\nYour email submission **{user_email}** has been processed by an admin.\n\n📧 Status: **Completed**\n🕒 Processed at: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**"
+            loop.run_until_complete(send_admin_notification_dm(user_id, notification_message, "email_processed"))
             
             # Close database connection
             loop.run_until_complete(db.close())
@@ -2306,19 +2323,23 @@ def send_dm():
             # Initialize database connection
             loop.run_until_complete(db.initialize())
             
-            # Check if user exists and get username
-            user_data = loop.run_until_complete(db.execute_query('SELECT user_id FROM points WHERE user_id = $1', user_id))
+            # Ensure user_id is a string for database operations
+            user_id_str = str(user_id)
             
-            # Get Discord user object
+            # Check if user exists and get username
+            user_data = loop.run_until_complete(db.execute_query('SELECT user_id FROM points WHERE user_id = $1', user_id_str))
+            
+            # Get Discord user object using integer conversion
             try:
-                discord_user = bot.get_user(int(user_id))
+                discord_user = bot.get_user(int(user_id_str))
                 if not discord_user:
                     # Try fetching user if not in cache
-                    discord_user = loop.run_until_complete(bot.fetch_user(int(user_id)))
+                    discord_user = loop.run_until_complete(bot.fetch_user(int(user_id_str)))
                 
-                username = discord_user.display_name if discord_user else f"User {user_id}"
-            except:
-                username = f"User {user_id}"
+                username = discord_user.display_name if discord_user else f"User {user_id_str}"
+            except Exception as e:
+                logger.error(f"Error getting Discord user {user_id_str}: {e}")
+                username = f"User {user_id_str}"
             
             # Store message in database first
             message_id = loop.run_until_complete(db.execute_query('''
@@ -2328,7 +2349,7 @@ def send_dm():
                     delivery_status, sent_at
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
                 RETURNING id
-            ''', "0", "Dashboard Admin", user_id, username, message_content, message_type, "pending"))
+            ''', "0", "Dashboard Admin", user_id_str, username, message_content, message_type, "pending"))
             
             message_id = message_id[0][0] if message_id else None
             
