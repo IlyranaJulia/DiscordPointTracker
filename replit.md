@@ -49,6 +49,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Achievement Commands Added**: New /achievements and /recentachievements slash commands for viewing personal and community achievements
 - **Database Structure Optimization**: Streamlined dashboard from 6 sections to 3 focused sections (Overview, User Management, Email Submissions)
 - **Automatic Achievement Integration**: Points management now automatically checks and awards achievements when users reach milestones
+- **Points Data Correction (2025-07-25)**: Fixed critical data integrity issue where 36 users had inflated balances due to achievement bonus points not being properly tracked in transaction history, corrected total points from 65,094 to accurate 25,883
 ### Major Updates
 - **Complete Slash Commands Conversion**: All prefix commands (!) converted to modern Discord slash commands (/)
 - **Code Cleanup**: Removed duplicate Python files (bot_backup.py, test_order_system.py, order_processor_simple.py)
