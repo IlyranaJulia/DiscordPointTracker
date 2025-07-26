@@ -3564,43 +3564,54 @@ async def myemail_slash(interaction: discord.Interaction):
 @bot.tree.command(name="pipihelp", description="Show help information for all commands")
 async def pipihelp_slash(interaction: discord.Interaction):
     """Show help information for all commands"""
-    embed = discord.Embed(
-        title="🤖 Points Bot Help",
-        description="Manage member points with these slash commands:",
-        color=discord.Color.blue()
-    )
-    
-    # User commands
-    embed.add_field(
-        name="👤 User Commands",
-        value="`/mypoints` - Check your points balance (private)\n"
-              "`/submitemail <email>` - Submit order email (private)\n"
-              "`/updateemail <email>` - Update your submitted email\n"
-              "`/myemail` - Check your email submission status\n"
-              "`/pipihelp` - Show this help message",
-        inline=False
-    )
-    
-    # Admin commands
-    embed.add_field(
-        name="⚙️ Admin Commands",
-        value="`/pointsboard [limit]` - Show points leaderboard\n"
-              "`/status` - Show bot status and statistics\n"
-              "`/refreshpresence` - Force refresh bot online status\n"
-              "`/checkemail <user>` - Check any user's email status",
-        inline=False
-    )
-    
-    # Achievement commands
-    embed.add_field(
-        name="🏆 Achievement Commands",
-        value="`/achievements [user]` - View achievements (your own or someone else's)\n"
-              "`/recentachievements` - See latest achievements earned by all users",
-        inline=False
-    )
-    
-    embed.set_footer(text="Bot made with ❤️ | All personal data is kept private")
-    await interaction.response.send_message(embed=embed)
+    try:
+        embed = discord.Embed(
+            title="🤖 Points Bot Help",
+            description="Manage member points with these slash commands:",
+            color=discord.Color.blue()
+        )
+        
+        # User commands
+        embed.add_field(
+            name="👤 User Commands",
+            value="`/mypoints` - Check your points balance (private)\n"
+                  "`/submitemail <email>` - Submit order email (private)\n"
+                  "`/updateemail <email>` - Update your submitted email\n"
+                  "`/myemail` - Check your email submission status\n"
+                  "`/pipihelp` - Show this help message",
+            inline=False
+        )
+        
+        # Admin commands
+        embed.add_field(
+            name="⚙️ Admin Commands",
+            value="`/pointsboard [limit]` - Show points leaderboard\n"
+                  "`/status` - Show bot status and statistics\n"
+                  "`/refreshpresence` - Force refresh bot online status\n"
+                  "`/checkemail <user>` - Check any user's email status",
+            inline=False
+        )
+        
+        # Achievement commands
+        embed.add_field(
+            name="🏆 Achievement Commands",
+            value="`/achievements [user]` - View achievements (your own or someone else's)\n"
+                  "`/recentachievements` - See latest achievements earned by all users",
+            inline=False
+        )
+        
+        embed.set_footer(text="Bot made with ❤️ | All personal data is kept private")
+        await interaction.response.send_message(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in pipihelp slash command: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while showing help information.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while showing help information.", ephemeral=True)
+        except Exception as follow_error:
+            logger.error(f"Could not send pipihelp error message: {follow_error}")
 
 # Admin slash commands
 @bot.tree.command(name="status", description="Show bot status and statistics")
@@ -3608,6 +3619,9 @@ async def pipihelp_slash(interaction: discord.Interaction):
 async def status_slash(interaction: discord.Interaction):
     """Show bot status and statistics (Admin only)"""
     try:
+        # Defer to prevent timeout
+        await interaction.response.defer()
+        
         total_users = await bot.db.get_total_users()
         total_points = await bot.db.get_total_points()
         
@@ -3623,11 +3637,17 @@ async def status_slash(interaction: discord.Interaction):
         embed.add_field(name="🏠 Servers", value=f"{len(bot.guilds)}", inline=True)
         embed.add_field(name="👤 Users", value=f"{len(bot.users)}", inline=True)
         
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
         
     except Exception as e:
         logger.error(f"Error in status slash command: {e}")
-        await interaction.response.send_message("❌ An error occurred while fetching bot status.")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while fetching bot status.")
+            else:
+                await interaction.followup.send("❌ An error occurred while fetching bot status.")
+        except Exception as follow_error:
+            logger.error(f"Could not send status error message: {follow_error}")
 
 @bot.tree.command(name="refreshpresence", description="Force refresh bot online status")
 @app_commands.default_permissions(administrator=True)
