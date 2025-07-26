@@ -164,10 +164,17 @@ The application follows a modular architecture with clear separation of concerns
 
 ## Deployment Strategy
 
+### Replit Deployment Configuration (2025-07-26)
+- **Entry Point**: `app.py` - Deployment entry point that imports and runs `bot.py`
+- **24/7 Operation**: When deployed on Replit, bot runs continuously without requiring laptop to stay on
+- **Health Checks**: Flask web server on port 5000 provides health endpoints for deployment monitoring
+- **Auto-restart**: Deployment automatically restarts bot if it crashes, ensuring maximum uptime
+
 ### Environment Configuration
 - Bot token must be provided via `BOT_TOKEN` environment variable
 - All configuration customizable through environment variables
 - Fallback defaults provided for development
+- **Critical**: Ensure BOT_TOKEN secret is properly configured in Replit deployment
 
 ### Database Strategy
 - **Choice**: PostgreSQL for permanent data persistence and scalability
