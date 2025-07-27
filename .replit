@@ -5,25 +5,6 @@ channel = "stable-24_05"
 packages = ["postgresql", "sqlite"]
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Discord Bot"
-
-[[workflows.workflow]]
-name = "Discord Bot"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pip install discord.py aiosqlite python-dotenv flask && python bot.py"
-waitForPort = 5000
 
 [[ports]]
 localPort = 5000
