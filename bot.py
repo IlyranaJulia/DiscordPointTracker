@@ -2875,12 +2875,24 @@ class PointsBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Error setting bot presence: {e}")
             
-            # Sync slash commands
+            # Sync slash commands with retry mechanism
             try:
                 synced = await self.tree.sync()
                 logger.info(f"Synced {len(synced)} slash commands")
+                
+                # Log each synced command for debugging
+                for cmd in synced:
+                    logger.info(f"  - /{cmd.name}: {cmd.description}")
+                    
             except Exception as e:
                 logger.error(f"Failed to sync slash commands: {e}")
+                # Retry once after a delay
+                try:
+                    await asyncio.sleep(5)
+                    synced = await self.tree.sync()
+                    logger.info(f"Retry successful: Synced {len(synced)} slash commands")
+                except Exception as retry_error:
+                    logger.error(f"Retry failed: {retry_error}")
         
     async def on_command_error(self, ctx, error):
         """Global error handler for commands"""
@@ -2902,6 +2914,41 @@ class PointsBot(commands.Bot):
         else:
             logger.error(f"Unexpected error in command {ctx.command}: {error}")
             await ctx.send("❌ An unexpected error occurred. Please try again later.")
+    
+    async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Global error handler for slash commands"""
+        logger.error(f"Slash command error in /{interaction.command.name if interaction.command else 'unknown'}: {error}")
+        
+        try:
+            if isinstance(error, app_commands.CommandOnCooldown):
+                await interaction.response.send_message(
+                    f"❌ Command is on cooldown. Try again in {error.retry_after:.2f} seconds.",
+                    ephemeral=True
+                )
+            elif isinstance(error, app_commands.MissingPermissions):
+                await interaction.response.send_message(
+                    "❌ You don't have permission to use this command.",
+                    ephemeral=True
+                )
+            elif isinstance(error, app_commands.BotMissingPermissions):
+                await interaction.response.send_message(
+                    "❌ Bot is missing required permissions to execute this command.",
+                    ephemeral=True
+                )
+            else:
+                # Generic error response
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ An error occurred while processing this command. Please try again later.",
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ An error occurred while processing this command. Please try again later.",
+                        ephemeral=True
+                    )
+        except Exception as response_error:
+            logger.error(f"Failed to send error response: {response_error}")
     
     async def periodic_presence_refresh(self):
         """Periodically refresh bot presence to ensure it stays online"""
