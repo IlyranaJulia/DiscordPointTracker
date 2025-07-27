@@ -35,7 +35,18 @@ def ping():
 
 @keep_alive_app.route('/health')
 def health():
-    return {"status": "healthy", "service": "discord-bot", "uptime": True}
+    return {
+        "status": "healthy", 
+        "service": "discord-bot", 
+        "uptime": True,
+        "timestamp": time.time(),
+        "message": "Bot deployment is active"
+    }
+
+@keep_alive_app.route('/keepalive')
+def keepalive():
+    """Special endpoint for external monitoring services"""
+    return {"alive": True, "timestamp": time.time()}
 
 def run_keep_alive_server():
     """Run keep-alive server on port 8080"""
@@ -50,15 +61,50 @@ def start_keep_alive():
     server_thread.start()
     logger.info("🔄 Keep-alive server started on port 8080")
 
+def external_ping_sources():
+    """List of external ping services that can help keep deployment alive"""
+    return [
+        "https://uptime.betterstack.com/api/v1/heartbeat/",  # Better Stack
+        "https://hc-ping.com/",  # Healthchecks.io style
+        "https://cronitor.io/ping/",  # Cronitor style
+    ]
+
 def self_ping_loop():
-    """Continuously ping self to prevent sleeping"""
+    """Continuously ping self and register with external services to prevent sleeping"""
+    logger.info("🚀 Starting enhanced keep-alive system...")
+    
     while True:
         try:
-            time.sleep(250)  # Ping every 4+ minutes
-            requests.get('http://localhost:8080/ping', timeout=5)
-            logger.info("💓 Self-ping successful - bot staying alive")
+            time.sleep(180)  # Ping every 3 minutes for better reliability
+            
+            # Self-ping our own endpoints
+            success = False
+            endpoints = ['http://localhost:5000/', 'http://localhost:8080/ping']
+            for endpoint in endpoints:
+                try:
+                    response = requests.get(endpoint, timeout=8)
+                    if response.status_code == 200:
+                        logger.info(f"💓 Self-ping successful: {endpoint}")
+                        success = True
+                        break
+                except Exception as e:
+                    logger.warning(f"Self-ping failed for {endpoint}: {e}")
+                    continue
+            
+            if not success:
+                logger.warning("❌ All self-ping attempts failed")
+            
+            # Additional technique: Make a simple HTTP request to a reliable external service
+            # This creates network activity that helps prevent sleeping
+            try:
+                requests.get('https://httpbin.org/uuid', timeout=5)
+                logger.debug("External network activity completed")
+            except:
+                pass  # Ignore external request failures
+                
         except Exception as e:
-            logger.warning(f"Self-ping failed (expected): {e}")
+            logger.error(f"Critical keep-alive error: {e}")
+            time.sleep(30)  # Shorter retry on critical error
 
 def start_self_ping():
     """Start self-ping in background thread"""
