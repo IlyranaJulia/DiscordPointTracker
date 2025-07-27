@@ -11,5 +11,6 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "python-dateutil>=2.9.0.post0",
     "python-dotenv>=1.1.1",
+    "requests>=2.32.4",
     "sendgrid>=6.12.4",
 ]

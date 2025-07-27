@@ -164,11 +164,13 @@ The application follows a modular architecture with clear separation of concerns
 
 ## Deployment Strategy
 
-### Replit Deployment Configuration (2025-07-26)
-- **Entry Point**: `app.py` - Deployment entry point that imports and runs `bot.py`
-- **24/7 Operation**: When deployed on Replit, bot runs continuously without requiring laptop to stay on
-- **Health Checks**: Flask web server on port 5000 provides health endpoints for deployment monitoring
+### Replit Deployment Configuration (2025-07-27) 
+- **Entry Point**: `app.py` - Production deployment entry point with keep-alive mechanisms
+- **24/7 Operation**: Bot runs continuously without requiring laptop to stay on
+- **Keep-Alive System**: Dual-server setup with self-ping every 4 minutes to prevent sleeping
+- **Health Checks**: Flask web server on port 5000 + keep-alive server on port 8080
 - **Auto-restart**: Deployment automatically restarts bot if it crashes, ensuring maximum uptime
+- **Production Ready**: Prevents Replit development environment from going to sleep
 
 ### Environment Configuration
 - Bot token must be provided via `BOT_TOKEN` environment variable
