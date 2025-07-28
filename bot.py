@@ -188,6 +188,7 @@ def dashboard():
                         <label for="user-search">🔍 Search Users (by Username, Email, or User ID):</label>
                         <input type="text" id="user-search" placeholder="Enter username, email, or user ID..." onkeyup="searchUsers()" style="margin-bottom: 10px;">
                         <button onclick="loadUsers()" class="refresh-btn">🔄 Refresh Users</button>
+                        <button onclick="addNewUser()" class="export-btn" style="background: #17a2b8;">➕ Add New User</button>
                         <button onclick="exportUsers()" class="export-btn">📥 Export Users</button>
                     </div>
                     
@@ -858,6 +859,57 @@ def dashboard():
                     if (result.success) {
                         loadUsers();
                         alert('Email processed successfully!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function addNewUser() {
+                const userId = prompt('Enter Discord User ID (17-19 digits):');
+                if (!userId || userId.trim() === '') return;
+                
+                // Basic validation for Discord user ID
+                if (!/^\d{17,19}$/.test(userId.trim())) {
+                    alert('Please enter a valid Discord User ID (17-19 digits)');
+                    return;
+                }
+                
+                const username = prompt('Enter username (optional):') || '';
+                const email = prompt('Enter email address (optional):') || '';
+                const points = prompt('Set initial points (default: 0):') || '0';
+                
+                // Validate email if provided
+                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    alert('Please enter a valid email address');
+                    return;
+                }
+                
+                // Validate points
+                const pointsValue = parseInt(points);
+                if (isNaN(pointsValue) || pointsValue < 0) {
+                    alert('Please enter a valid number of points (0 or greater)');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/add_new_user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: userId.trim(),
+                            username: username.trim(),
+                            email: email.trim(),
+                            points: pointsValue
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadUsers();
+                        alert('New user added successfully!\\n\\n' + result.message);
                     } else {
                         alert('Error: ' + result.error);
                     }
@@ -2204,6 +2256,97 @@ def process_user_email():
             
     except Exception as e:
         logger.error(f"Error processing user email: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/add_new_user", methods=["POST"])
+def add_new_user():
+    """API endpoint for adding a completely new user with points and optional email"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id = data.get('user_id', '').strip()
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        points = data.get('points', 0)
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID is required"})
+        
+        # Basic validation for Discord user ID format
+        if not user_id.isdigit() or len(user_id) < 17 or len(user_id) > 19:
+            return jsonify({"success": False, "error": "Invalid Discord User ID format"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            message_parts = []
+            
+            # Check if user already exists in points table
+            points_check = loop.run_until_complete(db.execute_query('SELECT balance FROM points WHERE user_id = $1', user_id))
+            if points_check:
+                return jsonify({"success": False, "error": f"User {user_id} already exists with {points_check[0][0]} points"})
+            
+            # Add user to points table
+            loop.run_until_complete(db.execute_query('''
+                INSERT INTO points (user_id, balance, created_at, updated_at)
+                VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ''', user_id, points))
+            message_parts.append(f"✓ Added user with {points:,} points")
+            
+            # Add initial transaction record if points > 0
+            if points > 0:
+                loop.run_until_complete(db.execute_query('''
+                    INSERT INTO transactions (user_id, amount, transaction_type, admin_id, reason, created_at)
+                    VALUES ($1, $2, 'add', 'dashboard_admin', 'Initial points from admin dashboard', CURRENT_TIMESTAMP)
+                ''', user_id, points))
+                message_parts.append(f"✓ Recorded initial points transaction")
+            
+            # Add email submission if email provided
+            if email:
+                # Check if email already exists
+                email_check = loop.run_until_complete(db.execute_query('SELECT discord_user_id FROM email_submissions WHERE email_address = $1', email))
+                if email_check:
+                    message_parts.append(f"⚠️ Email {email} already exists for user {email_check[0][0]}")
+                else:
+                    loop.run_until_complete(db.execute_query('''
+                        INSERT INTO email_submissions (discord_user_id, discord_username, email_address, server_roles, status, submitted_at)
+                        VALUES ($1, $2, $3, '', 'pending', CURRENT_TIMESTAMP)
+                    ''', user_id, username or f"User {user_id}", email))
+                    message_parts.append(f"✓ Added email submission: {email}")
+            
+            # Add to user_stats table
+            loop.run_until_complete(db.execute_query('''
+                INSERT INTO user_stats (user_id, total_earned, total_spent, highest_balance, transaction_count, last_activity, created_at)
+                VALUES ($1, $2, 0, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ''', user_id, points, 1 if points > 0 else 0))
+            message_parts.append(f"✓ Created user statistics profile")
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            return jsonify({
+                "success": True, 
+                "message": "\\n".join(message_parts),
+                "user_id": user_id,
+                "points": points,
+                "email": email or None
+            })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error adding new user: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/update_user_profile", methods=["POST"])
