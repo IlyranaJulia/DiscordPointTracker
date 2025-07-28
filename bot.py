@@ -3470,29 +3470,30 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
             roles_debug_info = "→ Using fallback for update: Member only"
             logger.info(f"→ Using fallback for user {interaction.user.id} update: Member only")
         
-        # Use PostgreSQL instead of SQLite
-        await bot.db.initialize()
+        # Ensure database is initialized and connected
+        if not bot.db.pool:
+            await bot.db.initialize()
         
         # Check if user has an existing submission using PostgreSQL
-        existing_query = '''
-            SELECT id, email_address FROM email_submissions 
-            WHERE discord_user_id = $1 AND status = 'pending'
-        '''
-        existing_result = await bot.db.execute_query(existing_query, str(interaction.user.id))
-        existing = existing_result[0] if existing_result else None
-        
-        if not existing:
-            await interaction.response.send_message(
-                "❌ No email submission found. Use `/submitemail` first.",
-                ephemeral=True
-            )
-            return
-        
-        submission_id, old_email = existing
-        new_email = email.strip().lower()
-        
-        # Update the email address and server roles using PostgreSQL
         async with bot.db.pool.acquire() as conn:
+            existing_result = await conn.fetch('''
+                SELECT id, email_address FROM email_submissions 
+                WHERE discord_user_id = $1 AND status = 'pending'
+            ''', str(interaction.user.id))
+            
+            existing = existing_result[0] if existing_result else None
+            
+            if not existing:
+                await interaction.response.send_message(
+                    "❌ No email submission found. Use `/submitemail` first.",
+                    ephemeral=True
+                )
+                return
+            
+            submission_id, old_email = existing[0], existing[1]
+            new_email = email.strip().lower()
+            
+            # Update the email address and server roles using PostgreSQL
             await conn.execute('''
                 UPDATE email_submissions 
                 SET email_address = $1, submitted_at = CURRENT_TIMESTAMP,
@@ -3527,7 +3528,10 @@ async def myemail_slash(interaction: discord.Interaction):
         # Get email submission data using PostgreSQL
         logger.info(f"Checking email status for user {interaction.user.id}")
         
-        # Use the existing PostgreSQL database connection
+        # Ensure database is initialized and get connection
+        if not bot.db.pool:
+            await bot.db.initialize()
+            
         async with bot.db.pool.acquire() as conn:
             # Get all submissions for this user to see the full picture
             submissions = await conn.fetch('''
