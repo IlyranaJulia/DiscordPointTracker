@@ -3340,6 +3340,13 @@ async def store_user_email(user_id: int, email: str, roles: list = None):
 async def mypoints_slash(interaction: discord.Interaction):
     """Check your points balance via DM"""
     try:
+        # Defer the response immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
+        # Ensure database is initialized
+        if not bot.db.pool:
+            await bot.db.initialize()
+        
         balance = await bot.db.get_points(str(interaction.user.id))
         
         embed = discord.Embed(
@@ -3348,9 +3355,10 @@ async def mypoints_slash(interaction: discord.Interaction):
             color=discord.Color.blue()
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        embed.set_footer(text="Use /pipihelp to see all available commands")
         
-        # Always respond ephemerally for privacy - single response only
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        # Use followup since we deferred
+        await interaction.followup.send(embed=embed, ephemeral=True)
         
     except Exception as e:
         logger.error(f"Error in mypoints slash command: {e}")
@@ -3448,17 +3456,23 @@ async def pointsboard_slash(interaction: discord.Interaction, limit: int = 10):
 @app_commands.describe(email="Your email address")
 async def submitemail_slash(interaction: discord.Interaction, email: str):
     """Submit your email address with privacy protection"""
-    # Validate email format
-    if not EMAIL_RE.fullmatch(email.strip()):
-        await interaction.response.send_message(
-            "❌ That doesn't look like a valid email. Please try again.",
-            ephemeral=True
-        )
-        return
-
     try:
+        # Defer the response immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
+        # Validate email format
+        if not EMAIL_RE.fullmatch(email.strip()):
+            await interaction.followup.send(
+                "❌ That doesn't look like a valid email. Please try again.",
+                ephemeral=True
+            )
+            return
+
+        # Ensure database is initialized
+        if not bot.db.pool:
+            await bot.db.initialize()
+            
         # Check if user already has a pending submission using PostgreSQL
-        await bot.db.initialize()
         existing_query = '''
             SELECT email_address, status FROM email_submissions 
             WHERE discord_user_id = $1
@@ -3513,18 +3527,18 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
         if existing:
             old_email, status = existing
             if status == 'pending':
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"✅ Your email has been updated from `{old_email}` to `{email.strip()}`",
                     ephemeral=True
                 )
             else:
                 # This shouldn't happen due to the new logic, but just in case
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "✅ Your email has been successfully submitted, thank you!",
                     ephemeral=True
                 )
         else:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "✅ Your email has been successfully submitted, thank you!",
                 ephemeral=True
             )
@@ -3564,15 +3578,17 @@ async def submitemail_slash(interaction: discord.Interaction, email: str):
 @app_commands.describe(email="Your new email address")
 async def updateemail_slash(interaction: discord.Interaction, email: str):
     """Update your previously submitted email address"""
-    # Validate email format
-    if not EMAIL_RE.fullmatch(email.strip()):
-        await interaction.response.send_message(
-            "❌ That doesn't look like a valid email. Please try again.",
-            ephemeral=True
-        )
-        return
-        
     try:
+        # Defer the response immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
+        # Validate email format
+        if not EMAIL_RE.fullmatch(email.strip()):
+            await interaction.followup.send(
+                "❌ That doesn't look like a valid email. Please try again.",
+                ephemeral=True
+            )
+            return
         # Collect user's current server roles with enhanced debugging
         user_roles = []
         roles_debug_info = "No guild context"
@@ -3627,7 +3643,7 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
             existing = existing_result[0] if existing_result else None
             
             if not existing:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ No email submission found. Use `/submitemail` first.",
                     ephemeral=True
                 )
@@ -3645,7 +3661,7 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
                 WHERE id = $4
             ''', new_email, ', '.join(user_roles) if user_roles else 'Member only', old_email, submission_id)
             
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"✅ Email updated successfully from `{old_email}` to `{new_email}`",
                 ephemeral=True
             )
