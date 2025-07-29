@@ -3795,32 +3795,14 @@ async def pipihelp_slash(interaction: discord.Interaction):
             color=discord.Color.blue()
         )
         
-        # User commands
+        # User commands - shown to everyone
         embed.add_field(
-            name="👤 User Commands",
+            name="👤 Available Commands",
             value="`/mypoints` - Check your points balance (private)\n"
                   "`/submitemail <email>` - Submit order email (private)\n"
                   "`/updateemail <email>` - Update your submitted email\n"
                   "`/myemail` - Check your email submission status\n"
                   "`/pipihelp` - Show this help message",
-            inline=False
-        )
-        
-        # Admin commands
-        embed.add_field(
-            name="⚙️ Admin Commands",
-            value="`/pointsboard [limit]` - Show points leaderboard\n"
-                  "`/status` - Show bot status and statistics\n"
-                  "`/refreshpresence` - Force refresh bot online status\n"
-                  "`/checkemail <user>` - Check any user's email status",
-            inline=False
-        )
-        
-        # Achievement commands
-        embed.add_field(
-            name="🏆 Achievement Commands",
-            value="`/achievements [user]` - View achievements (your own or someone else's)\n"
-                  "`/recentachievements` - See latest achievements earned by all users",
             inline=False
         )
         
