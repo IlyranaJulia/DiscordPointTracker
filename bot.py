@@ -3006,7 +3006,7 @@ class PointsBot(commands.Bot):
                 
                 # Wait a moment then set with activity
                 await asyncio.sleep(2)
-                activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
+                activity = discord.Game(name="Drinking strawberryjuice /pipihelp for commands")
                 await self.change_presence(status=discord.Status.online, activity=activity)
                 logger.info("Bot presence set to online with activity status")
                 
@@ -3099,7 +3099,7 @@ class PointsBot(commands.Bot):
         
         while not self.is_closed():
             try:
-                activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
+                activity = discord.Game(name="Drinking strawberryjuice /pipihelp for commands")
                 await self.change_presence(status=discord.Status.online, activity=activity)
                 logger.debug("Periodic presence refresh completed")
                 
@@ -3880,7 +3880,7 @@ async def refresh_presence_slash(interaction: discord.Interaction):
         await bot.change_presence(status=discord.Status.online)
         await asyncio.sleep(1)
         
-        activity = discord.Game(name="/pipihelp for commands | /mypoints | /pointsboard")
+        activity = discord.Game(name="Drinking strawberryjuice /pipihelp for commands")
         await bot.change_presence(status=discord.Status.online, activity=activity)
         await asyncio.sleep(1)
         
