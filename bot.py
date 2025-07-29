@@ -3746,9 +3746,23 @@ async def myemail_slash(interaction: discord.Interaction):
                 status_emoji = "❌"
             
             embed.add_field(name="Status", value=f"{status_emoji} {status.title()}", inline=True)
-            embed.add_field(name="Submitted", value=submitted_at, inline=True)
+            
+            # Format dates to show only Y-M-D
+            if hasattr(submitted_at, 'strftime'):
+                submitted_date = submitted_at.strftime('%Y-%m-%d')
+            else:
+                # Handle string format dates
+                submitted_date = str(submitted_at).split()[0] if submitted_at else "Unknown"
+            
+            embed.add_field(name="Submitted", value=submitted_date, inline=True)
+            
             if processed_at:
-                embed.add_field(name="Processed", value=processed_at, inline=True)
+                if hasattr(processed_at, 'strftime'):
+                    processed_date = processed_at.strftime('%Y-%m-%d')
+                else:
+                    # Handle string format dates
+                    processed_date = str(processed_at).split()[0]
+                embed.add_field(name="Processed", value=processed_date, inline=True)
             
             # Only show update option if still pending
             if status == 'pending':
