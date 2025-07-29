@@ -3896,7 +3896,7 @@ async def refresh_presence_slash(interaction: discord.Interaction):
         )
         embed.add_field(name="Action Taken", value="Multiple presence updates sent to Discord", inline=False)
         embed.add_field(name="Status", value="🟢 Online", inline=True)
-        embed.add_field(name="Activity", value="Playing: /pipihelp for commands", inline=True)
+        embed.add_field(name="Activity", value="Playing: Drinking strawberryjuice /pipihelp for commands", inline=True)
         
         await interaction.followup.send(embed=embed)
         
