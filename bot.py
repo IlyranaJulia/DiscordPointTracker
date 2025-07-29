@@ -3684,6 +3684,9 @@ async def updateemail_slash(interaction: discord.Interaction, email: str):
 async def myemail_slash(interaction: discord.Interaction):
     """Check your current email submission status - always fetches fresh data"""
     try:
+        # Defer the response immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
         # Get email submission data using PostgreSQL
         logger.info(f"Checking email status for user {interaction.user.id}")
         
@@ -3761,20 +3764,31 @@ async def myemail_slash(interaction: discord.Interaction):
                     inline=False
                 )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
         
     except Exception as e:
         logger.error(f"Error in myemail slash command: {e}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message(
-                "❌ An error occurred while checking your email status.",
-                ephemeral=True
-            )
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ An error occurred while checking your email status.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    "❌ An error occurred while checking your email status.",
+                    ephemeral=True
+                )
+        except Exception:
+            pass
 
 @bot.tree.command(name="pipihelp", description="Show help information for all commands")
 async def pipihelp_slash(interaction: discord.Interaction):
     """Show help information for all commands"""
     try:
+        # Defer the response immediately to prevent timeout
+        await interaction.response.defer()
+        
         embed = discord.Embed(
             title="🤖 Points Bot Help",
             description="Manage member points with these slash commands:",
@@ -3811,7 +3825,7 @@ async def pipihelp_slash(interaction: discord.Interaction):
         )
         
         embed.set_footer(text="Bot made with ❤️ | All personal data is kept private")
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
         
     except Exception as e:
         logger.error(f"Error in pipihelp slash command: {e}")
