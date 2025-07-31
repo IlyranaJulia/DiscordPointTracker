@@ -3288,6 +3288,9 @@ async def send_admin_notification_dm(user_id, message_content, message_type="gen
 
 async def store_user_email(user_id: int, email: str, roles: list = None):
     """Store user email and server roles in database - only one pending submission per user"""
+    # Convert user_id to string for database compatibility
+    user_id_str = str(user_id)
+    
     # Use the bot's PostgreSQL database connection
     await bot.db.initialize()
     
@@ -3310,7 +3313,7 @@ async def store_user_email(user_id: int, email: str, roles: list = None):
         WHERE discord_user_id = $1
         ORDER BY submitted_at DESC LIMIT 1
     '''
-    existing_result = await bot.db.execute_query(existing_query, user_id)
+    existing_result = await bot.db.execute_query(existing_query, user_id_str)
     existing = existing_result[0] if existing_result else None
     
     if existing:
@@ -3332,7 +3335,7 @@ async def store_user_email(user_id: int, email: str, roles: list = None):
         INSERT INTO email_submissions (discord_user_id, discord_username, email_address, server_roles, status)
         VALUES ($1, $2, $3, $4, 'pending')
     '''
-    await bot.db.execute_query(insert_query, user_id, username, email, roles_str)
+    await bot.db.execute_query(insert_query, user_id_str, username, email, roles_str)
     return "new_submission"
 
 # Slash Commands
