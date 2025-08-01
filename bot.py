@@ -749,12 +749,12 @@ def dashboard():
                     }
                     html += '</td>';
                     html += '<td>';
-                    html += '<button onclick="adjustPoints(\'' + user.user_id + '\', \'add\')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 3px; color: white; border: none; border-radius: 3px;">➕ Add</button>';
-                    html += '<button onclick="adjustPoints(\'' + user.user_id + '\', \'reduce\')" style="background: #dc3545; font-size: 12px; padding: 4px 8px; margin-right: 3px; color: white; border: none; border-radius: 3px;">➖ Reduce</button>';
-                    html += '<button onclick="setPoints(\'' + user.user_id + '\')" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Set</button>';
-                    html += '<button onclick="editUserProfile(\'' + user.user_id + '\')" style="background: #6f42c1; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">👤 Edit Profile</button>';
+                    html += '<button onclick="adjustPoints(&quot;' + user.user_id + '&quot;, &quot;add&quot;)" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 3px; color: white; border: none; border-radius: 3px;">➕ Add</button>';
+                    html += '<button onclick="adjustPoints(&quot;' + user.user_id + '&quot;, &quot;reduce&quot;)" style="background: #dc3545; font-size: 12px; padding: 4px 8px; margin-right: 3px; color: white; border: none; border-radius: 3px;">➖ Reduce</button>';
+                    html += '<button onclick="setPoints(&quot;' + user.user_id + '&quot;)" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Set</button>';
+                    html += '<button onclick="editUserProfile(&quot;' + user.user_id + '&quot;)" style="background: #6f42c1; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">👤 Edit Profile</button>';
                     if (user.email && user.email_status === 'pending') {
-                        html += '<button onclick="processUserEmail(\'' + user.user_id + '\')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✓ Process Email</button>';
+                        html += '<button onclick="processUserEmail(&quot;' + user.user_id + '&quot;)" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✓ Process Email</button>';
                     }
                     html += '</td>';
                     html += '</tr>';
