@@ -187,6 +187,13 @@ def dashboard():
                     <div class="form-group">
                         <label for="user-search">🔍 Search Users (by Username, Email, or User ID):</label>
                         <input type="text" id="user-search" placeholder="Enter username, email, or user ID..." onkeyup="searchUsers()" style="margin-bottom: 10px;">
+                        <select id="sort-users" onchange="sortUsers()" style="margin-bottom: 10px; margin-left: 10px; padding: 5px;">
+                            <option value="points_desc">Sort by Points (High to Low)</option>
+                            <option value="points_asc">Sort by Points (Low to High)</option>
+                            <option value="username_asc">Sort by Username (A-Z)</option>
+                            <option value="username_desc">Sort by Username (Z-A)</option>
+                            <option value="email_status">Sort by Email Status</option>
+                        </select>
                         <button onclick="loadUsers()" class="refresh-btn">🔄 Refresh Users</button>
                         <button onclick="addNewUser()" class="export-btn" style="background: #17a2b8;">➕ Add New User</button>
                         <button onclick="exportUsers()" class="export-btn">📥 Export Users</button>
@@ -742,7 +749,9 @@ def dashboard():
                     }
                     html += '</td>';
                     html += '<td>';
-                    html += '<button onclick="editUser(' + "'" + user.user_id + "'" + ')" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Edit Points</button>';
+                    html += '<button onclick="adjustPoints(' + "'" + user.user_id + "'" + ', \'add\')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 3px; color: white; border: none; border-radius: 3px;">➕ Add</button>';
+                    html += '<button onclick="adjustPoints(' + "'" + user.user_id + "'" + ', \'reduce\')" style="background: #dc3545; font-size: 12px; padding: 4px 8px; margin-right: 3px; color: white; border: none; border-radius: 3px;">➖ Reduce</button>';
+                    html += '<button onclick="setPoints(' + "'" + user.user_id + "'" + ')" style="background: #007bff; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✏️ Set</button>';
                     html += '<button onclick="editUserProfile(' + "'" + user.user_id + "'" + ')" style="background: #6f42c1; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">👤 Edit Profile</button>';
                     if (user.email && user.email_status === 'pending') {
                         html += '<button onclick="processUserEmail(' + "'" + user.user_id + "'" + ')" style="background: #28a745; font-size: 12px; padding: 4px 8px; margin-right: 5px; color: white; border: none; border-radius: 3px;">✓ Process Email</button>';
@@ -755,7 +764,54 @@ def dashboard():
                 container.innerHTML = html;
             }
 
-            async function editUser(userId) {
+            async function adjustPoints(userId, action) {
+                const user = allUsers.find(u => u.user_id === userId);
+                if (!user) {
+                    alert('User not found');
+                    return;
+                }
+                
+                const currentPoints = user.points || 0;
+                const actionText = action === 'add' ? 'add to' : 'reduce from';
+                const promptText = `Enter points to ${actionText} ${user.username || 'User ' + userId} (current: ${currentPoints.toLocaleString()}):`;
+                
+                const adjustAmount = prompt(promptText);
+                if (adjustAmount === null) return;
+                
+                const amount = parseInt(adjustAmount);
+                if (isNaN(amount) || amount <= 0) {
+                    alert('Please enter a valid positive number');
+                    return;
+                }
+                
+                const reason = prompt(`Reason for ${action === 'add' ? 'adding' : 'reducing'} ${amount} points:`, 'Admin adjustment');
+                if (reason === null) return;
+                
+                try {
+                    const response = await fetch('/api/adjust_user_points', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: userId,
+                            action: action,
+                            amount: amount,
+                            reason: reason.trim() || 'Admin adjustment'
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadUsers();
+                        alert(`Points ${action === 'add' ? 'added' : 'reduced'} successfully! User notified via DM.`);
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            async function setPoints(userId) {
                 const user = allUsers.find(u => u.user_id === userId);
                 if (!user) {
                     alert('User not found');
@@ -771,6 +827,9 @@ def dashboard():
                     return;
                 }
                 
+                const reason = prompt('Reason for setting points:', 'Admin set points');
+                if (reason === null) return;
+                
                 try {
                     const response = await fetch('/api/set_user_points', {
                         method: 'POST',
@@ -778,20 +837,48 @@ def dashboard():
                         body: JSON.stringify({ 
                             user_id: userId,
                             points: points,
-                            reason: 'Admin set via user management'
+                            reason: reason.trim() || 'Admin set points'
                         })
                     });
                     
                     const result = await response.json();
                     if (result.success) {
                         loadUsers();
-                        alert('Points updated successfully!');
+                        alert('Points updated successfully! User notified via DM.');
                     } else {
                         alert('Error: ' + result.error);
                     }
                 } catch (error) {
                     alert('Error: ' + error.message);
                 }
+            }
+
+            function sortUsers() {
+                const sortBy = document.getElementById('sort-users').value;
+                let sortedUsers = [...allUsers];
+                
+                switch(sortBy) {
+                    case 'points_desc':
+                        sortedUsers.sort((a, b) => (b.points || 0) - (a.points || 0));
+                        break;
+                    case 'points_asc':
+                        sortedUsers.sort((a, b) => (a.points || 0) - (b.points || 0));
+                        break;
+                    case 'username_asc':
+                        sortedUsers.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+                        break;
+                    case 'username_desc':
+                        sortedUsers.sort((a, b) => (b.username || '').localeCompare(a.username || ''));
+                        break;
+                    case 'email_status':
+                        sortedUsers.sort((a, b) => {
+                            const statusOrder = {'processed': 3, 'pending': 2, null: 1};
+                            return (statusOrder[b.email_status] || 0) - (statusOrder[a.email_status] || 0);
+                        });
+                        break;
+                }
+                
+                displayUsers(sortedUsers);
             }
 
             async function editUserProfile(userId) {
@@ -2199,6 +2286,96 @@ def set_user_points():
             
     except Exception as e:
         logger.error(f"Error setting user points: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/adjust_user_points", methods=["POST"])
+def adjust_user_points():
+    """API endpoint for adding or reducing user points"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"})
+        
+        user_id = data.get('user_id')
+        action = data.get('action')  # 'add' or 'reduce'
+        amount = data.get('amount')
+        reason = data.get('reason', 'Admin adjustment')
+        
+        if not user_id or not action or amount is None:
+            return jsonify({"success": False, "error": "Missing user_id, action, or amount"})
+        
+        if action not in ['add', 'reduce']:
+            return jsonify({"success": False, "error": "Action must be 'add' or 'reduce'"})
+        
+        try:
+            amount = int(amount)
+            if amount <= 0:
+                return jsonify({"success": False, "error": "Amount must be positive"})
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid amount format"})
+        
+        from database_postgresql import PostgreSQLPointsDatabase
+        db = PostgreSQLPointsDatabase()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Initialize database connection
+            loop.run_until_complete(db.initialize())
+            
+            # Get current points
+            current_points = loop.run_until_complete(db.get_points(user_id))
+            
+            # Calculate new points
+            if action == 'add':
+                new_points = current_points + amount
+                change_text = f"+{amount}"
+                action_text = "added"
+            else:  # reduce
+                new_points = max(0, current_points - amount)  # Don't allow negative points
+                actual_reduction = current_points - new_points
+                change_text = f"-{actual_reduction}"
+                action_text = "reduced"
+                if actual_reduction != amount:
+                    reason += f" (reduced by {actual_reduction} to prevent negative balance)"
+            
+            # Update points
+            success = loop.run_until_complete(db.set_points(user_id, new_points, admin_id=None, reason=reason))
+            
+            # Send DM notification if successful
+            if success:
+                from datetime import datetime
+                dm_message = f"💰 **Points {action_text.title()}**\n\n"
+                dm_message += f"Your points have been {action_text} by an admin.\n\n"
+                dm_message += f"🔄 **Change:** {change_text} points\n"
+                dm_message += f"📊 **Previous Balance:** {current_points:,} points\n"
+                dm_message += f"📊 **New Balance:** {new_points:,} points\n"
+                dm_message += f"📝 **Reason:** {reason}\n"
+                dm_message += f"🕒 **Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                
+                send_admin_notification_dm_sync(user_id, dm_message, "points_adjustment")
+            
+            # Close database connection
+            loop.run_until_complete(db.close())
+            
+            if success:
+                return jsonify({
+                    "success": True, 
+                    "message": f"Points {action_text} successfully",
+                    "old_points": current_points,
+                    "new_points": new_points,
+                    "change": change_text
+                })
+            else:
+                return jsonify({"success": False, "error": "Failed to adjust points"})
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error adjusting user points: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/process_user_email", methods=["POST"])
